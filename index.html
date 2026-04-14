@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora de Orçamento</title>
+<style>
+    body {
+        font-family: Arial;
+        background: #f5f5f5;
+        padding: 20px;
+    }
+    .container {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 400px;
+        margin: auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+        text-align: center;
+    }
+    input {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0 15px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+    .resultado {
+        margin-top: 20px;
+        font-size: 18px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calculadora de Orçamento</h2>
+
+    <label>Tipo de tecido (R$/m)</label>
+    <input type="number" id="tecido">
+
+    <label>Quantidade (m)</label>
+    <input type="number" id="quantidade">
+
+    <label>Varão (R$)</label>
+    <input type="number" id="varao">
+
+    <label>Mão de obra (R$)</label>
+    <input type="number" id="mao">
+
+    <label>Instalação (R$)</label>
+    <input type="number" id="instalacao">
+
+    <label>Modelo (%)</label>
+    <input type="number" id="modelo">
+
+    <button onclick="calcular()">Calcular</button>
+
+    <div class="resultado" id="resultado"></div>
+</div>
+
+<script>
+function calcular() {
+    let tecido = parseFloat(document.getElementById('tecido').value) || 0;
+    let quantidade = parseFloat(document.getElementById('quantidade').value) || 0;
+    let varao = parseFloat(document.getElementById('varao').value) || 0;
+    let mao = parseFloat(document.getElementById('mao').value) || 0;
+    let instalacao = parseFloat(document.getElementById('instalacao').value) || 0;
+    let modelo = parseFloat(document.getElementById('modelo').value) || 0;
+
+    let custoTecido = tecido * quantidade;
+    let subtotal = custoTecido + varao + mao + instalacao;
+    let acrescimo = subtotal * (modelo / 100);
+    let total = subtotal + acrescimo;
+
+    document.getElementById('resultado').innerHTML =
+        "Valor final: R$ " + total.toFixed(2);
+}
+</script>
+
+</body>
+</html>
