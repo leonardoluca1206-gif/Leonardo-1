@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Orçamento</title>
+<style>
+    /* O box-sizing garante que o padding não quebre a largura de 100% dos inputs */
+    * {
+        box-sizing: border-box;
+    }
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        margin: 0;
+        padding: 15px;
+        /* Flexbox para centralizar a calculadora vertical e horizontalmente */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+    }
+    .container {
+        background: white;
+        padding: 25px 20px;
+        border-radius: 10px;
+        width: 100%; /* Em celulares, ocupa todo o espaço disponível... */
+        max-width: 400px; /* ...mas trava em 400px em telas maiores */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.5rem;
+    }
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.95rem;
+        color: #333;
+    }
+    input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 1rem;
+    }
+    button {
+        width: 100%;
+        padding: 14px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    button:hover {
+        background: #218838;
+    }
+    .resultado {
+        margin-top: 20px;
+        font-size: 1.2rem;
+        text-align: center;
+        font-weight: bold;
+        color: #28a745;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Calculadora de Orçamento</h2>
+
+    <label for="tecido">Tipo de tecido (R$/m)</label>
+    <input type="number" id="tecido">
+
+    <label for="quantidade">Quantidade (m)</label>
+    <input type="number" id="quantidade">
+
+    <label for="varao">Varão (R$)</label>
+    <input type="number" id="varao">
+
+    <label for="mao">Mão de obra (R$)</label>
+    <input type="number" id="mao">
+
+    <label for="instalacao">Instalação (R$)</label>
+    <input type="number" id="instalacao">
+
+    <label for="modelo">Modelo (%)</label>
+    <input type="number" id="modelo">
+
+    <button onclick="calcular()">Calcular</button>
+
+    <div class="resultado" id="resultado"></div>
+</div>
+
+<script>
+function calcular() {
+    let tecido = parseFloat(document.getElementById('tecido').value) || 0;
+    let quantidade = parseFloat(document.getElementById('quantidade').value) || 0;
+    let varao = parseFloat(document.getElementById('varao').value) || 0;
+    let mao = parseFloat(document.getElementById('mao').value) || 0;
+    let instalacao = parseFloat(document.getElementById('instalacao').value) || 0;
+    let modelo = parseFloat(document.getElementById('modelo').value) || 0;
+
+    let custoTecido = tecido * quantidade;
+    let subtotal = custoTecido + varao + mao + instalacao;
+    let acrescimo = subtotal * (modelo / 100);
+    let total = subtotal + acrescimo;
+
+    // Adicionei o replace para trocar o ponto por vírgula no padrão brasileiro
+    document.getElementById('resultado').innerHTML =
+        "Valor final: R$ " + total.toFixed(2).replace('.', ',');
+}
+</script>
+
+</body>
+</html>
