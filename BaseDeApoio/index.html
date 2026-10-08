@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Base de Apoio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b63e5'/%3E%3Cpath d='M9 11h14M9 16h14M9 21h9' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script>
+  /* tema salvo antes de desenhar, para não piscar */
+  (function () { var t = null; try { t = localStorage.getItem('baseApoio.tema'); } catch (e) {} if (t === 'claro' || t === 'escuro') document.documentElement.dataset.theme = t === 'escuro' ? 'dark' : 'light'; })();
+</script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="lateral" id="lateral">
+    <a class="marca" href="#inicio">Base de Apoio</a>
+    <nav class="menu" id="menu" aria-label="Menu principal">
+      <a href="#inicio" data-rota="inicio"><span class="ico" data-ico="casa"></span>Visão geral</a>
+      <a href="#assistente" data-rota="assistente"><span class="ico" data-ico="chat"></span>Assistente</a>
+      <a href="#procv" data-rota="procv"><span class="ico" data-ico="barras"></span>Comparar / PROCV</a>
+      <a href="#importacao" data-rota="importacao"><span class="ico" data-ico="nuvem"></span>Importação de dados</a>
+      <a href="#relatorios" data-rota="relatorios"><span class="ico" data-ico="documento"></span>Buscar relatórios</a>
+      <a href="#ajuda" data-rota="ajuda"><span class="ico" data-ico="ajuda"></span>Área de ajuda</a>
+    </nav>
+    <nav class="menu menu-rodape" aria-label="Administração">
+      <a href="#config" data-rota="config"><span class="ico" data-ico="engrenagem"></span>Configurações</a>
+    </nav>
+  </aside>
+  <div class="fundo-menu" id="fundo-menu"></div>
+  <div class="principal">
+    <header class="barra">
+      <button class="icone-btn abre-menu" id="abre-menu" type="button" aria-label="Abrir menu"><span class="ico" data-ico="menu"></span></button>
+      <nav class="migalha" id="migalha" aria-label="Você está em"></nav>
+      <a class="pill-banco off" id="pill-banco" href="#config/banco"><i></i>Banco</a>
+      <div class="tema" role="group" aria-label="Tema">
+        <button type="button" data-tema="claro"><span class="ico" data-ico="sol"></span><span class="rot">Claro</span></button>
+        <button type="button" data-tema="escuro"><span class="ico" data-ico="lua"></span><span class="rot">Escuro</span></button>
+      </div>
+    </header>
+    <main id="app" class="conteudo" tabindex="-1"></main>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="modal" class="modal" hidden>
+  <div class="modal-caixa" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <h3 id="modal-titulo"></h3>
+    <div id="modal-corpo"></div>
+    <div class="modal-acoes" id="modal-acoes"></div>
+  </div>
+</div>
+<noscript><p style="padding:24px">Ative o JavaScript para usar a Base de Apoio.</p></noscript>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script src="dados/layouts.js"></script>
+<script src="dados/ajuda.js"></script>
+<script src="dados/procedimentos.js"></script>
+<script src="dados/relatorios_prosindw.js"></script>
+<script src="dados/menu_prosindw.js"></script>
+<script src="dados/campos_prosindw.js"></script>
+<script src="js/motor.js"></script>
+<script>
+  if (!window.Motor || !window.DADOS_LAYOUTS || !window.XLSX) {
+    document.getElementById('app').innerHTML = '<div class="cartao" style="max-width:640px;margin:40px auto"><h2>Arquivos do sistema não encontrados</h2>' +
+      '<p>Extraia a pasta inteira do .zip antes de abrir (botão direito no zip &gt; Extrair tudo). Depois abra o <strong>index.html</strong> de dentro da pasta extraída.</p></div>';
+  }
+</script>
+<script src="js/assistente.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

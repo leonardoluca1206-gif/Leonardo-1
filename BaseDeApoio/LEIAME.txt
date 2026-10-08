@@ -1,0 +1,106 @@
+BASE DE APOIO
+=============
+
+Não precisa instalar nada (nem Python).
+
+COMO ABRIR
+1. Clique com o botão direito no .zip > "Extrair tudo".
+2. Abra a pasta extraída.
+3. Dois cliques em BaseDeApoio.exe.
+   - Abre uma janela preta (deixe aberta) e o navegador em http://127.0.0.1:8765
+   - Se o Windows avisar "O Windows protegeu o computador": Mais informações > Executar assim mesmo.
+   - Para fechar o sistema, feche a janela preta.
+
+Sem o .exe também dá para abrir o index.html com dois cliques, mas aí não há ligação com o banco
+(Assistente só responde dúvidas; boletos e relatórios do banco ficam indisponíveis).
+Os dados que você cadastrou pelo index.html ficam em outro "endereço" do navegador:
+leve-os com Configurações > Backup (exportar lá, importar no endereço http://127.0.0.1:8765).
+
+LIGAR AO BANCO DO PROSINDW
+Na primeira vez, o BaseDeApoio.exe já abre a tela de conexão (depois: Configurações >
+Banco de dados > Alterar conexão). Ela também abre sozinha se a conexão salva parar de funcionar.
+1. Onde fica o banco: "Neste computador" ou "Em um servidor da rede" (IP e porta, padrão 3050).
+   A tela mostra na hora se o Firebird está respondendo.
+2. Arquivo do banco: clique em Procurar… (janela do Windows) ou escolha um dos .fdb
+   encontrados neste computador. No servidor, digite o caminho como o SERVIDOR enxerga o arquivo.
+   Ex.: C:\Sist\ProSindW\prosindw.fdb
+3. Usuário e senha do Firebird (ex.: SYSDBA) > Salvar e conectar.
+A configuração fica em %APPDATA%\BaseDeApoio\conector.json (senha protegida pelo Windows:
+só este usuário, neste computador, consegue ler). Por isso ela continua valendo quando você
+substitui a pasta do sistema por uma versão nova.
+
+DADOS LIDOS DO PROSINDW (ao conectar; botão "Atualizar do banco")
+- Beneficiário: entidade informada na contribuição (Tabelas > Tipos de Contribuição > Entidade);
+  sem entidade, o cadastro do sindicato. O que faltar pode ser completado em "Complementos".
+- Banco, agência, conta, convênio, carteira, local de pagamento, instruções e contrato de remessa.
+- Nosso número: último emitido e próximo (mesmo sequencial do ProSindW).
+
+Se não conectar:
+- "usuário ou senha incorretos": confira usuário/senha do Firebird.
+- "não encontrou o arquivo do banco": o caminho deve ser o do servidor, não de uma pasta mapeada.
+- "recusou a conexão" / "não respondeu": IP, porta 3050 e firewall do servidor.
+- Método de login: no firebird.conf do servidor use  AuthServer = Srp256, Srp, Legacy_Auth
+
+BOLETOS PELO ASSISTENTE
+Exemplo: "Gere um boleto de 300 reais com referência 08/2026 vencimento 10/10/2026 para a empresa 25"
+(a empresa pode ser código, CNPJ ou nome). O Assistente pergunta o que faltar e mostra um resumo
+antes de gravar. O boleto é gravado pelo próprio ProSindW (procedure PSW_GERA_BLOQUETO_FB_EMP):
+mesmo nosso número, mesma tabela, mesmo log e entra na remessa normal do banco.
+O PDF fica em "Arquivos gerados\Boletos".
+
+CONFERÊNCIA DO CÁLCULO (AUTOMÁTICA)
+Ao conectar ao banco (e em Configurações > Banco de dados > Atualizar do banco), cada banco é
+conferido sozinho: o sistema pega o último boleto que o ProSindW gravou com linha digitável/código de
+barras, refaz o cálculo com os dados bancários da contribuição e compara. Igual = liberado para todas
+as contribuições daquele banco, sem precisar digitar nada.
+- "Diferente do ProSindW": o cálculo não bate; o banco fica bloqueado e a tela mostra as duas linhas.
+  Confira os dados bancários da contribuição no ProSindW e clique em Atualizar do banco.
+- "A conferir": ainda não há boleto daquele banco no ProSindW para comparar. Assim que o ProSindW
+  emitir um, a conferência acontece sozinha. Se precisar antes, use "Conferir manualmente"
+  (digite a linha digitável de um boleto impresso pelo ProSindW).
+
+Regras verificadas (motivo aparece quando não dá para gerar):
+- empresa não encontrada / inativa / início de atividade depois da referência;
+- contribuição inexistente, inativa, sem banco ou sem agência cadastrada; GRCSU (outro fluxo);
+- competência já paga; mais de um lançamento na competência; oposição registrada;
+- vencimento ou referência inválidos (ex.: ano com 3 dígitos);
+- banco com registro on-line (iugu, Asaas, Cora...) ou cálculo ainda não disponível;
+- cálculo do banco ainda não conferido ou diferente do boleto gravado pelo ProSindW.
+Boleto já existente na competência: pede confirmação e altera, como o ProSindW faz.
+Bancos com cálculo: Banco do Brasil (001/002/009), Caixa (104 SICOB, 105/106 SIGCB), Bradesco (237/238),
+Itaú (341), Santander (033/034), Sicoob (756/760), Sicredi (748/749) e bloqueto não bancário (000).
+
+RELATÓRIOS PELO ASSISTENTE (dados do banco, em PDF ou Excel)
+Sócios · Quantidade de sócios por situação e sexo · Aniversariantes do mês · Dependentes ·
+Empresas ativas/inativas · Empresas sem pagamento na competência · Contribuições em aberto ·
+Contribuições pagas · Boletos emitidos · Oposições de empresas e de sócios.
+
+Filtros de sócios que podem ser combinados na mesma frase:
+- filiação: "filiados a partir de 10/01/2020", "entre 01/01/2020 e 31/12/2022", "em 2021", "nos últimos 6 meses"
+- nascimento/idade: "nascidos antes de 1970", "com 60 anos ou mais", "menores de 30 anos"
+- sexo: masculino/feminino, homens/mulheres
+- endereço: "que moram em Santa Catarina" (ou SC), "fora de SC", "na cidade de ...", "bairro ..."
+- dependentes: "com dependentes", "sem dependentes", "com filhos menores de 18 anos", "com esposa",
+  "com 2 ou mais dependentes"
+- situação (afastados, aposentados, desfiliados), empresa, com/sem e-mail, com celular, WhatsApp
+- ordem: "por sexo", "por cidade", "por empresa", "por filiação"
+O relatório mostra, logo abaixo do título, os filtros que foram entendidos.
+Para os demais, o Assistente mostra onde o relatório está no ProSindW.
+As consultas são somente leitura. PDFs em "Arquivos gerados\Relatorios".
+
+MÓDULOS
+Assistente — boletos, relatórios com dados do banco e dúvidas da Ajuda.
+Comparar / PROCV — cruza duas planilhas por CNPJ, CPF, matrícula etc.
+Importação de dados — gera TXT/CSV no layout; lê e valida arquivos recebidos.
+Buscar relatórios — caminho no menu, filtros da tela, prévia e campos de cada relatório.
+Área de ajuda — procedimentos, páginas de ajuda e layouts.
+Configurações — layouts, procedimentos, relatórios, banco de dados e backup.
+
+PASTAS
+BaseDeApoio.exe       abre o sistema e liga ao banco (conector)
+Arquivos gerados/     boletos e relatórios em PDF
+index.html, css/, js/ interface
+dados/                layouts, ajuda, catálogo de relatórios, procedimentos
+conector/             código-fonte do BaseDeApoio.exe (Go). Para recompilar: go build
+tools/                (opcional, requer Python) regera os dados de layouts, ajuda e relatórios
+lib/                  leitura e gravação de Excel (SheetJS e ExcelJS, licenças incluídas)
