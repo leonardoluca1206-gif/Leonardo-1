@@ -72,8 +72,20 @@ Itaú (341), Santander (033/034), Sicoob (756/760), Sicredi (748/749) e bloqueto
 
 RELATÓRIOS PELO ASSISTENTE (dados do banco, em PDF ou Excel)
 Sócios · Quantidade de sócios por situação e sexo · Aniversariantes do mês · Dependentes ·
-Empresas ativas/inativas · Empresas sem pagamento na competência · Contribuições em aberto ·
-Contribuições pagas · Boletos emitidos · Oposições de empresas e de sócios.
+Empresas ativas/inativas · Empresas com contribuição · Empresas sem pagamento na competência ·
+Contribuições em aberto · Contribuições pagas · Boletos emitidos · Oposições de empresas e de sócios.
+
+Agrupar (subtotal por grupo + aba "Resumo" no Excel): acrescente "por ..." na frase.
+- por grupo (ou "por CNPJ raiz"): matriz e filiais juntas, pelos 8 primeiros números do CNPJ
+- por contribuição · por empresa · por cidade · por UF · por situação · por referência
+  (nos relatórios de sócios use "agrupado por cidade/sexo...", porque "por cidade" só ordena)
+Excel direto: diga "em Excel" ou "planilha" e o arquivo já é baixado (números e datas de verdade,
+cabeçalho fixo, subtotais e total).
+Exemplos:
+  "Empresas que têm contribuição, por grupo, em Excel"
+  "Empresas com contribuição ASS em 2026 por cidade"
+  "Contribuições pagas de 01/01/2026 a 30/09/2026 por grupo"
+  "Contribuições em aberto por contribuição em planilha"
 
 Filtros de sócios que podem ser combinados na mesma frase:
 - filiação: "filiados a partir de 10/01/2020", "entre 01/01/2020 e 31/12/2022", "em 2021", "nos últimos 6 meses"

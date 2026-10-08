@@ -550,8 +550,11 @@ mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 3
 .ok-txt { color: var(--ok); display: flex; align-items: center; gap: 8px; }
 .tabela-chat { max-height: 320px; margin: 8px 0; }
 .tabela-chat table { font-size: .8rem; }
-.tabela-chat th, .tabela-chat td { padding: 5px 8px; }
+.tabela-chat th, .tabela-chat td { padding: 5px 8px; white-space: nowrap; }
 .tabela-chat .linha-total td { font-weight: 700; border-top: 2px solid var(--texto-2); }
+.tabela-chat .linha-grupo td { background: var(--primaria-suave); color: var(--texto); border-top: 1px solid var(--primaria-borda); }
+.resumo-grupos { margin: 6px 0 10px; }
+.resumo-grupos summary { cursor: pointer; font-weight: 600; color: var(--primaria); }
 .digitando { display: inline-flex; gap: 4px; padding: 4px 2px; }
 .digitando i { width: 7px; height: 7px; border-radius: 50%; background: var(--texto-3); animation: pisca 1s infinite ease-in-out; }
 .digitando i:nth-child(2) { animation-delay: .15s; }

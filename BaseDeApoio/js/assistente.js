@@ -367,13 +367,13 @@ const RELATORIOS_BD = [
   },
   {
     id: 'oposicoes_emp', titulo: 'Oposições de empresas', palavras: /\boposic.*\bempresas?\b|\bempresas?\b.*\boposic/,
-    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTCARTA', 'Carta', 'data'), COL('DSMOTIVO', 'Motivo')],
+    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTCARTA', 'Carta', 'data'), COL('DSMOTIVO', 'Motivo')],
     montar(p) {
       const w = ['1 = 1']; const a = [];
       if (p.contribuicao) { w.push('O.CDCONTRIBUICAO = ?'); a.push(p.contribuicao); }
       if (p.ano) { w.push('O.NRANO = ?'); a.push(p.ano); }
       if (p.mes) { w.push('O.NRMES = ?'); a.push(p.mes); }
-      return { sql: `SELECT O.CDEMPRESA, E.NMEMPRESA, O.CDCONTRIBUICAO, LPAD(O.NRMES, 2, '0') || '/' || O.NRANO AS COMPETENCIA, O.DTCARTA, M.DSMOTIVO FROM PSW_OPOSICOES_EMP O
+      return { sql: `SELECT O.CDEMPRESA, E.NMEMPRESA, E.NRCNPJ, O.CDCONTRIBUICAO, LPAD(O.NRMES, 2, '0') || '/' || O.NRANO AS COMPETENCIA, O.DTCARTA, M.DSMOTIVO FROM PSW_OPOSICOES_EMP O
         JOIN PSW_EMPRESAS E ON E.CDGRUPO = O.CDEMPRESA LEFT JOIN PSW_MOTIVOS_OPO M ON M.CDMOTIVO = O.CDMOTIVO WHERE ${w.join(' AND ')} ORDER BY O.NRANO DESC, O.NRMES DESC, E.NMEMPRESA`, params: a, subtitulo: filtrosTexto(p) };
     },
   },
@@ -410,6 +410,36 @@ const RELATORIOS_BD = [
     },
   },
   {
+    id: 'empresas_contrib', titulo: 'Empresas com contribuição',
+    palavras: /\bempresas?\b.*\b(tem|tenham|tenha|possuem|possuam|possui|com|que pagam|lancad\w*)\b.*\bcontribui/,
+    aceita: (n) => !/\b(sem pagamento|nao pagaram|sem contribui|em aberto|devendo|inadimpl|em atraso)\b/.test(n),
+    colunas: [COL('CDGRUPO', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('NMCIDADE', 'Cidade'), COL('CDUF', 'UF'), COL('INSITUACAO', 'Situação'),
+      COL('CDCONTRIBUICAO', 'Contrib.'), COL('DSTIPO', 'Descrição'), COL('QTD', 'Lançamentos', 'int'), COL('PRIMREF', 'Primeira ref.', 'ref'), COL('ULTREF', 'Última ref.', 'ref'),
+      COL('VLPAGO', 'Pago', 'moeda'), COL('VLABERTO', 'Em aberto', 'moeda')],
+    totais: ['QTD', 'VLPAGO', 'VLABERTO'],
+    montar(p, texto) {
+      const n = nrm(texto);
+      const w = []; const a = []; const rot = [];
+      if (p.contribuicao) { w.push('C.CDCONTRIBUICAO = ?'); a.push(p.contribuicao); rot.push(`Contribuição ${p.contribuicao}`); }
+      if (!p.ano) { const m = /\b(?:em|de|do ano|ano|no ano de)\s+(20\d{2})\b/.exec(n); if (m) p.ano = +m[1]; }
+      if (p.mes && p.ano) { w.push('C.NRMESEXERCICIO = ? AND C.NRANOEXERCICIO = ?'); a.push(p.mes, p.ano); rot.push(`Referência ${String(p.mes).padStart(2, '0')}/${p.ano}`); }
+      else if (p.ano) { w.push('C.NRANOEXERCICIO = ?'); a.push(p.ano); rot.push(`Ano ${p.ano}`); }
+      if (p.de && p.ate) { w.push('C.DTVENCIMENTO BETWEEN ? AND ?'); a.push(p.de, p.ate); rot.push(`Vencimento de ${fmtData(p.de)} a ${fmtData(p.ate)}`); }
+      if (/\b(pagas?|pagos?|quitad\w*)\b/.test(n) && !/\bque pagam\b/.test(n)) { w.push('C.DTPAGAMENTO IS NOT NULL'); rot.push('Só lançamentos pagos'); }
+      else if (/\b(abertas?|abertos?|pendentes?)\b/.test(n)) { w.push('C.DTPAGAMENTO IS NULL'); rot.push('Só lançamentos em aberto'); }
+      if (p.situacao) { w.push('E.INSITUACAO = ?'); a.push(p.situacao); rot.push(`Empresas ${p.situacao.toLowerCase()}s`); }
+      if (p.codEmpresa) { w.push('C.CDEMPRESA = ?'); a.push(p.codEmpresa); rot.push(p.nomeEmpresa || `Empresa ${p.codEmpresa}`); }
+      return { sql: `SELECT E.CDGRUPO, E.NMEMPRESA, E.NRCNPJ, E.NMCIDADE, E.CDUF, E.INSITUACAO, C.CDCONTRIBUICAO, T.DSTIPO, COUNT(*) AS QTD,
+          MIN(C.NRANOEXERCICIO * 100 + C.NRMESEXERCICIO) AS PRIMREF, MAX(C.NRANOEXERCICIO * 100 + C.NRMESEXERCICIO) AS ULTREF,
+          SUM(CASE WHEN C.DTPAGAMENTO IS NOT NULL THEN COALESCE(C.VLPAGAMENTO, 0) ELSE 0 END) AS VLPAGO,
+          SUM(CASE WHEN C.DTPAGAMENTO IS NULL THEN COALESCE(C.VLPAGAMENTO, 0) ELSE 0 END) AS VLABERTO
+        FROM PSW_CONTRIBEMP C JOIN PSW_EMPRESAS E ON E.CDGRUPO = C.CDEMPRESA LEFT JOIN PSW_TPCONTRIBUICOES T ON T.CDTIPO = C.CDCONTRIBUICAO
+        ${w.length ? `WHERE ${w.join(' AND ')}` : ''}
+        GROUP BY E.CDGRUPO, E.NMEMPRESA, E.NRCNPJ, E.NMCIDADE, E.CDUF, E.INSITUACAO, C.CDCONTRIBUICAO, T.DSTIPO ORDER BY E.NMEMPRESA, C.CDCONTRIBUICAO`,
+      params: a, subtitulo: rot.join(' · ') || 'Todas as contribuições lançadas para empresas' };
+    },
+  },
+  {
     id: 'empresas', titulo: 'Empresas', palavras: /\bempresas?\b(?!.*\b(contribui|boleto|oposic|pag|abert|debito))/,
     colunas: [COL('CDGRUPO', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('NMCIDADE', 'Cidade'), COL('NRFONE', 'Telefone'), COL('NRFUNCIONARIOS', 'Funcionários', 'int'), COL('NMEMAIL', 'E-mail')],
     totais: ['NRFUNCIONARIOS'],
@@ -429,7 +459,7 @@ const RELATORIOS_BD = [
   },
   {
     id: 'contrib_abertas', titulo: 'Contribuições de empresas em aberto', palavras: /\bcontribui.*\b(abert|pendente|nao pag|atras|devendo)|\b(abert|pendente|atras|inadimpl).*\bcontribui|\bempresas?\b.*\b(em aberto|devendo|inadimpl|em atraso)\b/,
-    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda'), COL('DSDOCUMENTO', 'Nosso número')],
+    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda'), COL('DSDOCUMENTO', 'Nosso número')],
     totais: ['VLPAGAMENTO'],
     montar(p) {
       const w = ['C.DTPAGAMENTO IS NULL']; const a = [];
@@ -437,13 +467,13 @@ const RELATORIOS_BD = [
       if (p.mes && p.ano) { w.push('C.NRMESEXERCICIO = ? AND C.NRANOEXERCICIO = ?'); a.push(p.mes, p.ano); }
       if (p.de && p.ate) { w.push('C.DTVENCIMENTO BETWEEN ? AND ?'); a.push(p.de, p.ate); }
       if (p.codEmpresa) { w.push('C.CDEMPRESA = ?'); a.push(p.codEmpresa); }
-      return { sql: `SELECT C.CDEMPRESA, E.NMEMPRESA, C.CDCONTRIBUICAO, LPAD(C.NRMESEXERCICIO, 2, '0') || '/' || C.NRANOEXERCICIO AS COMPETENCIA, C.DTVENCIMENTO, C.VLPAGAMENTO, C.DSDOCUMENTO
+      return { sql: `SELECT C.CDEMPRESA, E.NMEMPRESA, E.NRCNPJ, C.CDCONTRIBUICAO, LPAD(C.NRMESEXERCICIO, 2, '0') || '/' || C.NRANOEXERCICIO AS COMPETENCIA, C.DTVENCIMENTO, C.VLPAGAMENTO, C.DSDOCUMENTO
         FROM PSW_CONTRIBEMP C JOIN PSW_EMPRESAS E ON E.CDGRUPO = C.CDEMPRESA WHERE ${w.join(' AND ')} ORDER BY C.DTVENCIMENTO, E.NMEMPRESA`, params: a, subtitulo: filtrosTexto(p) };
     },
   },
   {
     id: 'contrib_pagas', titulo: 'Contribuições de empresas pagas', palavras: /\bcontribui.*\bpag|\bpag.*\bcontribui|\brecebid|\barrecad/,
-    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('DTPAGAMENTO', 'Pagamento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda')],
+    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('DTPAGAMENTO', 'Pagamento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda')],
     totais: ['VLPAGAMENTO'],
     montar(p) {
       const w = ['C.DTPAGAMENTO IS NOT NULL']; const a = [];
@@ -453,14 +483,14 @@ const RELATORIOS_BD = [
       w.push('C.DTPAGAMENTO BETWEEN ? AND ?'); a.push(de, ate);
       if (p.contribuicao) { w.push('C.CDCONTRIBUICAO = ?'); a.push(p.contribuicao); }
       if (p.codEmpresa) { w.push('C.CDEMPRESA = ?'); a.push(p.codEmpresa); }
-      return { sql: `SELECT C.CDEMPRESA, E.NMEMPRESA, C.CDCONTRIBUICAO, LPAD(C.NRMESEXERCICIO, 2, '0') || '/' || C.NRANOEXERCICIO AS COMPETENCIA, C.DTVENCIMENTO, C.DTPAGAMENTO, C.VLPAGAMENTO
+      return { sql: `SELECT C.CDEMPRESA, E.NMEMPRESA, E.NRCNPJ, C.CDCONTRIBUICAO, LPAD(C.NRMESEXERCICIO, 2, '0') || '/' || C.NRANOEXERCICIO AS COMPETENCIA, C.DTVENCIMENTO, C.DTPAGAMENTO, C.VLPAGAMENTO
         FROM PSW_CONTRIBEMP C JOIN PSW_EMPRESAS E ON E.CDGRUPO = C.CDEMPRESA WHERE ${w.join(' AND ')} ORDER BY C.DTPAGAMENTO, E.NMEMPRESA`, params: a,
         subtitulo: `Pagamentos de ${fmtData(de)} a ${fmtData(ate)}${p.contribuicao ? ` · Contribuição ${p.contribuicao}` : ''}${p.nomeEmpresa ? ` · ${p.nomeEmpresa}` : ''}` };
     },
   },
   {
     id: 'boletos_emitidos', titulo: 'Boletos de empresas emitidos', palavras: /\bboletos?\b.*\b(emitidos|gerados|lista|relatorio|relacao)\b|\b(relatorio|lista|relacao) de boletos?\b/,
-    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda'), COL('NRNOSSONUMERO', 'Nosso número'), COL('DTPAGAMENTO', 'Pago em', 'data')],
+    colunas: [COL('CDEMPRESA', 'Código', 'int'), COL('NMEMPRESA', 'Empresa'), COL('NRCNPJ', 'CNPJ', 'cnpj'), COL('CDCONTRIBUICAO', 'Contrib.'), COL('COMPETENCIA', 'Referência'), COL('DTVENCIMENTO', 'Vencimento', 'data'), COL('VLPAGAMENTO', 'Valor', 'moeda'), COL('NRNOSSONUMERO', 'Nosso número'), COL('DTPAGAMENTO', 'Pago em', 'data')],
     totais: ['VLPAGAMENTO'],
     montar(p) {
       const w = []; const a = [];
@@ -469,7 +499,7 @@ const RELATORIOS_BD = [
       if (p.contribuicao) { w.push('B.CDCONTRIBUICAO = ?'); a.push(p.contribuicao); }
       if (p.codEmpresa) { w.push('B.CDEMPRESA = ?'); a.push(p.codEmpresa); }
       if (!w.length) { w.push('B.DTVENCIMENTO >= ?'); const d = new Date(); d.setDate(d.getDate() - 60); a.push(d.toISOString().slice(0, 10)); }
-      return { sql: `SELECT B.CDEMPRESA, E.NMEMPRESA, B.CDCONTRIBUICAO, LPAD(B.NRMESEXERCICIO, 2, '0') || '/' || B.NRANOEXERCICIO AS COMPETENCIA, B.DTVENCIMENTO, C.VLPAGAMENTO, B.NRNOSSONUMERO, C.DTPAGAMENTO
+      return { sql: `SELECT B.CDEMPRESA, E.NMEMPRESA, E.NRCNPJ, B.CDCONTRIBUICAO, LPAD(B.NRMESEXERCICIO, 2, '0') || '/' || B.NRANOEXERCICIO AS COMPETENCIA, B.DTVENCIMENTO, C.VLPAGAMENTO, B.NRNOSSONUMERO, C.DTPAGAMENTO
         FROM PSW_BLOQUETOSEMP B JOIN PSW_CONTRIBEMP C ON C.CDEMPRESA = B.CDEMPRESA AND C.CDCONTRIBUICAO = B.CDCONTRIBUICAO AND C.NRANOEXERCICIO = B.NRANOEXERCICIO AND C.NRMESEXERCICIO = B.NRMESEXERCICIO AND C.DTVENCIMENTO = B.DTVENCIMENTO
         JOIN PSW_EMPRESAS E ON E.CDGRUPO = B.CDEMPRESA WHERE ${w.join(' AND ')} ORDER BY B.DTVENCIMENTO, E.NMEMPRESA`, params: a, subtitulo: filtrosTexto(p) || 'Vencimentos dos últimos 60 dias em diante' };
     },
@@ -500,6 +530,7 @@ const SUGESTOES_CHAT = [
   'Gere um boleto de 300 reais com referência 08/2026 vencimento 10/10/2026 para a empresa 25',
   'Sócios do sexo masculino filiados a partir de 01/01/2020 que moram em SC e têm dependentes',
   'Contribuições em aberto da referência 08/2026',
+  'Empresas que têm contribuição, por grupo, em Excel',
   'Empresas ativas',
   'Aniversariantes de outubro',
   'Como emitir segunda via de boleto?',
@@ -729,7 +760,7 @@ async function prepararRelatorio(mod, p, texto) {
   const q = mod.montar(p, texto);
   const res = await Conector.api('consulta', { body: { sql: q.sql, params: q.params, limite: 20000 } });
   parar();
-  mostrarRelatorio(mod, q, res);
+  mostrarRelatorio(mod, q, res, texto);
 }
 
 function perguntar(texto, opcoes, aoResponder) {
@@ -743,39 +774,129 @@ function formatarCelula(v, tipo) {
   if (tipo === 'data') return fmtData(v);
   if (tipo === 'moeda') return fmtMoeda(v);
   if (tipo === 'cnpj' || tipo === 'cpf') return fmtCNPJ(v);
+  if (tipo === 'ref') { const n = Number(v); return n > 100 ? `${String(n % 100).padStart(2, '0')}/${Math.floor(n / 100)}` : String(v); }
   if (tipo === 'int') return String(v);
   return String(v);
 }
 
-function mostrarRelatorio(mod, q, res) {
+// ============================================================ agrupamento ("por grupo", "por contribuição", "por cidade"...)
+// "Grupo" no ProSindW é o CNPJ raiz (8 primeiros números): matriz e filiais ficam juntas.
+const raizCNPJ = (c) => { const d = String(c || '').replace(/\D/g, ''); return d.length === 14 ? d.slice(0, 8) : ''; };
+const DIMENSOES = [
+  { chave: 'grupo', rotulo: 'Grupo (CNPJ raiz)', rx: /\b(grupos?( economicos?| de empresas?)?|cnpj raiz|raiz do cnpj|raiz de cnpj|matriz)\b/, campos: ['NRCNPJ'],
+    valor: (g) => raizCNPJ(g('NRCNPJ')) || `sem CNPJ ${g('CDGRUPO') || g('CDEMPRESA') || ''}`.trim(),
+    nome: (k, linhas) => {
+      if (!/^\d{8}$/.test(k)) return 'Sem CNPJ (empresa fora de grupo)';
+      const m = linhas.find((g) => String(g('NRCNPJ') || '').replace(/\D/g, '').slice(8, 12) === '0001') || linhas[0];
+      return `${k.replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3')} · ${m('NMEMPRESA') || m('EMPRESA') || ''}`;
+    } },
+  { chave: 'contribuicao', rotulo: 'Contribuição', rx: /\b(tipos? de )?contribuic(ao|oes)\b/, campos: ['CDCONTRIBUICAO'],
+    nome: (k, linhas) => { const d = linhas[0]('DSTIPO'); return d ? `${k} - ${d}` : k; } },
+  { chave: 'empresa', rotulo: 'Empresa', rx: /\bempresas?\b/, campos: ['NMEMPRESA', 'EMPRESA'] },
+  { chave: 'cidade', rotulo: 'Cidade', rx: /\b(cidades?|municipios?)\b/, campos: ['NMCIDADE'] },
+  { chave: 'uf', rotulo: 'UF', rx: /\b(uf|estados?)\b/, campos: ['CDUF'] },
+  { chave: 'situacao', rotulo: 'Situação', rx: /\bsituac(ao|oes)\b/, campos: ['INSITUACAO'] },
+  { chave: 'referencia', rotulo: 'Referência', rx: /\b(referencias?|competencias?)\b/, campos: ['COMPETENCIA'] },
+  { chave: 'sexo', rotulo: 'Sexo', rx: /\bsexo\b/, campos: ['CDSEXO'] },
+  { chave: 'parentesco', rotulo: 'Parentesco', rx: /\bparentesco\b/, campos: ['DSPARENTESCO'] },
+];
+// relatórios de pessoas já usam "por cidade/sexo" para ordenar: lá só agrupa com "agrupado por"
+const SO_ORDENA = new Set(['socios', 'aniversariantes', 'dependentes', 'oposicoes_soc']);
+function agrupamentoPedido(texto, mod) {
+  const n = nrm(texto);
+  const rx = SO_ORDENA.has(mod.id) ? /\b(?:agrupad[oa]s?|agrupar|separad[oa]s?|subtotal|subtotais) (?:por|pel[oa])\s+(.{3,40})/ : /\b(?:agrupad[oa]s? |separad[oa]s? |agrupar |subtotal |subtotais )?(?:por|pel[oa]|de cada)\s+(.{3,40})/g;
+  const trechos = [];
+  if (rx.global) { let m; while ((m = rx.exec(n))) trechos.push(m[1]); } else { const m = rx.exec(n); if (m) trechos.push(m[1]); }
+  for (const t of trechos) {
+    const d = DIMENSOES.find((x) => x.rx.test(t.split(/\b(?:e|com|em|no|na|do|da|de|que|para)\b/)[0] || t) || x.rx.test(t.slice(0, 22)));
+    if (d) return d;
+  }
+  return null;
+}
+
+const minusc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+
+function agrupar(dim, res, idx) {
+  const campo = dim.campos.find((c) => idx[c] !== undefined);
+  if (!campo && dim.chave !== 'grupo') return null;
+  if (dim.chave === 'grupo' && idx.NRCNPJ === undefined) return null;
+  const getter = (l) => (c) => (idx[c] === undefined ? null : l[idx[c]]);
+  const mapa = new Map();
+  res.linhas.forEach((l) => {
+    const g = getter(l);
+    const k = String((dim.valor ? dim.valor(g) : g(campo)) ?? '').trim() || '(não informado)';
+    if (!mapa.has(k)) mapa.set(k, []);
+    mapa.get(k).push(l);
+  });
+  const grupos = [...mapa.entries()].map(([k, ls]) => ({ chave: k, nome: dim.nome ? dim.nome(k, ls.map(getter)) : k, linhas: ls }));
+  grupos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }));
+  return grupos;
+}
+
+function mostrarRelatorio(mod, q, res, texto = '') {
   const idx = Object.fromEntries(res.colunas.map((c, i) => [c.toUpperCase(), i]));
   const cols = mod.colunas.filter((c) => idx[c.campo] !== undefined && !(q.ocultar || []).includes(c.campo));
-  const linhas = res.linhas.map((l) => cols.map((c) => formatarCelula(l[idx[c.campo]], c.tipo)));
-  let totais = null;
-  if ((mod.totais || []).length && res.linhas.length) {
-    totais = cols.map((c, j) => {
-      if (!(mod.totais || []).includes(c.campo)) return j === 0 ? 'TOTAL' : '';
-      const s = res.linhas.reduce((a, l) => a + (Number(l[idx[c.campo]]) || 0), 0);
-      return c.tipo === 'moeda' ? fmtMoeda(s) : String(Math.round(s * 100) / 100);
+  const tots = (mod.totais || []).filter((t) => cols.some((c) => c.campo === t));
+  const fmt = (l) => cols.map((c) => formatarCelula(l[idx[c.campo]], c.tipo));
+  const bruto = (l) => cols.map((c) => l[idx[c.campo]]);
+  const somar = (ls) => cols.map((c) => (tots.includes(c.campo) ? ls.reduce((a, l) => a + (Number(l[idx[c.campo]]) || 0), 0) : null));
+  const fmtSoma = (v, c) => (v === null ? '' : c.tipo === 'moeda' ? fmtMoeda(v) : String(Math.round(v * 100) / 100));
+  const linhaSoma = (soma, rotulo) => soma.map((v, j) => (j === 0 && v === null ? rotulo : j === 0 ? `${rotulo} ${fmtSoma(v, cols[0])}` : fmtSoma(v, cols[j])));
+
+  const dim = agrupamentoPedido(texto, mod);
+  const grupos = dim && res.linhas.length ? agrupar(dim, res, idx) : null;
+  const linhas = []; const brutos = []; const estilos = [];
+  let resumo = null;
+  if (grupos) {
+    grupos.forEach((g) => {
+      linhas.push([`${g.nome} (${fmtN(g.linhas.length)})`]); brutos.push(null); estilos.push('grupo');
+      g.linhas.forEach((l) => { linhas.push(fmt(l)); brutos.push(bruto(l)); estilos.push(''); });
+      if (tots.length || g.linhas.length > 1) { const s = somar(g.linhas); linhas.push(linhaSoma(s, `Subtotal (${fmtN(g.linhas.length)})`)); brutos.push(s); estilos.push('subtotal'); }
     });
-    if (mod.totais.includes(cols[0].campo)) totais[0] = `TOTAL ${totais[0]}`;
+    const colTot = cols.filter((c) => tots.includes(c.campo));
+    // quantas empresas diferentes há em cada grupo (quando o relatório é de empresas e o agrupamento não é por empresa)
+    const cEmp = ['CDGRUPO', 'CDEMPRESA'].find((c) => idx[c] !== undefined && dim.chave !== 'empresa');
+    const nEmp = (ls) => new Set(ls.map((l) => l[idx[cEmp]])).size;
+    resumo = { titulo: `Resumo por ${minusc(dim.rotulo)}`, colunas: [dim.rotulo, ...(cEmp ? ['Empresas'] : []), 'Registros', ...colTot.map((c) => c.rotulo)],
+      tipos: ['texto', ...(cEmp ? ['int'] : []), 'int', ...colTot.map((c) => c.tipo)],
+      linhas: grupos.map((g) => [g.nome, ...(cEmp ? [nEmp(g.linhas)] : []), g.linhas.length, ...colTot.map((c) => g.linhas.reduce((a, l) => a + (Number(l[idx[c.campo]]) || 0), 0))]) };
+    resumo.total = ['TOTAL', ...(cEmp ? [nEmp(res.linhas)] : []), res.linhas.length, ...colTot.map((c) => res.linhas.reduce((a, l) => a + (Number(l[idx[c.campo]]) || 0), 0))];
+  } else {
+    res.linhas.forEach((l) => { linhas.push(fmt(l)); brutos.push(bruto(l)); estilos.push(''); });
   }
+  let totais = null; let totaisBrutos = null;
+  if (tots.length && res.linhas.length) { totaisBrutos = somar(res.linhas); totais = linhaSoma(totaisBrutos, 'TOTAL'); }
+  const avisoGrupo = dim && !grupos && res.linhas.length ? `Não agrupei por ${minusc(dim.rotulo)}: este relatório não tem essa informação.` : '';
+  const subtitulo = [q.subtitulo, grupos ? `Agrupado por ${minusc(dim.rotulo)}: ${fmtN(grupos.length)} grupo(s)` : ''].filter(Boolean).join(' · ');
   const alinhar = cols.map((c) => (['moeda', 'int'].includes(c.tipo) ? 'd' : ''));
-  const dados = { titulo: mod.titulo, subtitulo: q.subtitulo || '', colunas: cols.map((c) => c.rotulo), alinhar, linhas, totais: totais || [] };
-  const prev = linhas.slice(0, 15);
-  bot(`<p><strong>${esc(mod.titulo)}</strong>${q.subtitulo ? `<br><small class="sutil">${esc(q.subtitulo)}</small>` : ''}</p>
+  const dados = { titulo: mod.titulo, subtitulo, colunas: cols.map((c) => c.rotulo), tipos: cols.map((c) => c.tipo), alinhar, linhas, brutos, estilos, totais: totais || [], totaisBrutos, resumo };
+  // prévia: até 15 linhas de dados (com os cabeçalhos de grupo no meio)
+  const prev = []; let nDados = 0;
+  for (let k = 0; k < linhas.length && nDados < 15; k++) { prev.push(k); if (!estilos[k]) nDados++; }
+  const tr = (k) => {
+    const e = estilos[k]; const l = linhas[k];
+    if (e === 'grupo') return `<tr class="linha-grupo"><td colspan="${cols.length}"><strong>${esc(l[0])}</strong></td></tr>`;
+    return `<tr class="${e === 'subtotal' ? 'linha-total' : ''}">${cols.map((c, j) => `<td class="${alinhar[j] ? 'num' : ''}">${esc(l[j] ?? '')}</td>`).join('')}</tr>`;
+  };
+  const resumoHtml = resumo ? `<details class="resumo-grupos" ${resumo.linhas.length <= 12 ? 'open' : ''}><summary>${esc(resumo.titulo)} (${fmtN(resumo.linhas.length)})</summary>
+    <div class="tabela-wrap tabela-chat"><table><thead><tr>${resumo.colunas.map((c, j) => `<th class="${j ? 'num' : ''}">${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${resumo.linhas.slice(0, 30).map((l) => `<tr>${l.map((v, j) => `<td class="${j ? 'num' : ''}">${esc(j === 0 ? v : resumo.tipos[j] === 'moeda' ? fmtMoeda(v) : fmtN(v))}</td>`).join('')}</tr>`).join('')}
+    <tr class="linha-total">${resumo.total.map((v, j) => `<td class="${j ? 'num' : ''}">${esc(j === 0 ? v : resumo.tipos[j] === 'moeda' ? fmtMoeda(v) : fmtN(v))}</td>`).join('')}</tr></tbody></table></div>
+    ${resumo.linhas.length > 30 ? '<p class="sutil">O Excel tem o resumo completo (aba Resumo).</p>' : ''}</details>` : '';
+  bot(`<p><strong>${esc(mod.titulo)}</strong>${subtitulo ? `<br><small class="sutil">${esc(subtitulo)}</small>` : ''}</p>
     <p>${res.total ? `${fmtN(res.total)} registro(s)${res.cortado ? ` (mostrando ${fmtN(res.linhas.length)})` : ''}.` : 'Nenhum registro encontrado com esses filtros.'}</p>
+    ${avisoGrupo ? `<p class="sutil">${esc(avisoGrupo)}</p>` : ''}${resumoHtml}
     ${res.total ? `<div class="tabela-wrap tabela-chat"><table><thead><tr>${cols.map((c, j) => `<th class="${alinhar[j] ? 'num' : ''}">${esc(c.rotulo)}</th>`).join('')}</tr></thead>
-      <tbody>${prev.map((l) => `<tr>${l.map((v, j) => `<td class="${alinhar[j] ? 'num' : ''}">${esc(v)}</td>`).join('')}</tr>`).join('')}
-      ${totais ? `<tr class="linha-total">${totais.map((v, j) => `<td class="${alinhar[j] ? 'num' : ''}">${esc(v)}</td>`).join('')}</tr>` : ''}</tbody></table></div>
-      ${linhas.length > prev.length ? `<p class="sutil">Prévia das ${prev.length} primeiras linhas. O PDF e o Excel têm todas.</p>` : ''}
-      <div class="acoes"><button type="button" class="botao" data-a="pdf">${ico('documento')}Gerar PDF</button><button type="button" class="botao sec" data-a="xlsx">${ico('baixar')}Excel</button></div>` : ''}`,
+      <tbody>${prev.map(tr).join('')}
+      ${totais && prev.length === linhas.length ? `<tr class="linha-total">${totais.map((v, j) => `<td class="${alinhar[j] ? 'num' : ''}">${esc(v)}</td>`).join('')}</tr>` : ''}</tbody></table></div>
+      ${prev.length < linhas.length ? `<p class="sutil">Prévia das ${nDados} primeiras linhas. O PDF e o Excel têm todas${grupos ? ', com subtotais por grupo' : ''}.</p>` : ''}
+      <div class="acoes"><button type="button" class="botao" data-a="xlsx">${ico('baixar')}Excel</button><button type="button" class="botao sec" data-a="pdf">${ico('documento')}Gerar PDF</button></div>` : ''}`,
   (el) => {
     const bp = $('[data-a=pdf]', el);
     if (bp) bp.onclick = async () => {
       bp.disabled = true;
       try {
-        const r = await Conector.api('relatorio/pdf', { body: { ...dados, arquivo: mod.titulo } });
+        const r = await Conector.api('relatorio/pdf', { body: { titulo: dados.titulo, subtitulo: dados.subtitulo, colunas: dados.colunas, alinhar, linhas, estilos, totais: dados.totais, arquivo: mod.titulo } });
         bot(`<p class="ok-txt"><strong>${ico('ok')} PDF gerado.</strong> <span class="mono">Arquivos gerados\\${esc(r.arquivo.replace(/\//g, '\\'))}</span></p>
           <div class="acoes"><a class="botao" href="${esc(r.url)}" target="_blank" rel="noopener">${ico('documento')}Abrir PDF</a><a class="botao sec" href="${esc(r.url)}&baixar=1">${ico('baixar')}Baixar</a></div>`);
       } catch (e) { bot(`<p class="erro-txt">${esc(e.message)}</p>`); }
@@ -784,24 +905,78 @@ function mostrarRelatorio(mod, q, res) {
     const bx = $('[data-a=xlsx]', el);
     if (bx) bx.onclick = () => excelRelatorio(dados).catch((e) => toast(e.message, 'erro'));
   }, true);
+  // "em Excel" / "planilha" na frase: já baixa
+  if (res.total && /\b(excel|planilha|xlsx|xls)\b/.test(nrm(texto))) excelRelatorio(dados).then(() => toast('Excel gerado.')).catch((e) => toast(e.message, 'erro'));
 }
+
+// valor da célula no Excel com o tipo certo (número, data), para filtrar e somar no Excel
+function celulaExcel(v, tipo) {
+  if (v === null || v === undefined || v === '') return null;
+  if (tipo === 'moeda' || tipo === 'int') { const n = Number(v); return Number.isFinite(n) ? n : String(v); }
+  if (tipo === 'data') { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v)); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : String(v); }
+  return formatarCelula(v, tipo);
+}
+const FORMATO_EXCEL = { moeda: '#,##0.00', int: '0', data: 'dd/mm/yyyy' };
 
 async function excelRelatorio(d) {
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet(d.titulo.slice(0, 30).replace(/[\\/?*[\]:]/g, ''));
+  wb.creator = 'Base de Apoio';
+  const nomeAba = (t) => t.slice(0, 30).replace(/[\\/?*[\]:]/g, '');
+  const ws = wb.addWorksheet(nomeAba(d.titulo), { views: [{ state: 'frozen', ySplit: d.subtitulo ? 4 : 3 }] });
+  const nc = d.colunas.length;
   ws.addRow([d.titulo]).font = { bold: true, size: 13 };
-  if (d.subtitulo) ws.addRow([d.subtitulo]);
-  ws.addRow([]);
+  if (d.subtitulo) ws.addRow([d.subtitulo]).font = { italic: true, color: { argb: 'FF555555' } };
+  ws.addRow([`Gerado em ${new Date().toLocaleString('pt-BR')}`]).font = { size: 9, color: { argb: 'FF777777' } };
   const cab = ws.addRow(d.colunas);
-  cab.font = { bold: true }; cab.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1FE' } }; });
-  const num = (v, j) => (d.alinhar[j] === 'd' && /^-?[\d.]+(,\d+)?$/.test(v) ? Number(v.replace(/\./g, '').replace(',', '.')) : v);
-  d.linhas.forEach((l) => ws.addRow(l.map(num)));
-  if (d.totais.length) ws.addRow(d.totais.map(num)).font = { bold: true };
-  d.colunas.forEach((c, j) => { ws.getColumn(j + 1).width = Math.min(45, Math.max(10, c.length + 2, ...d.linhas.slice(0, 300).map((l) => String(l[j] || '').length + 1))); if (d.alinhar[j] === 'd') ws.getColumn(j + 1).numFmt = '#,##0.00'; });
+  cab.font = { bold: true }; cab.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1FE' } }; c.border = { bottom: { style: 'thin' } }; });
+  const tipos = d.tipos || d.colunas.map((c, j) => (d.alinhar[j] === 'd' ? 'moeda' : 'texto'));
+  const temGrupo = (d.estilos || []).includes('grupo');
+  d.linhas.forEach((l, k) => {
+    const e = (d.estilos || [])[k] || '';
+    if (e === 'grupo') {
+      const r = ws.addRow([l[0]]);
+      ws.mergeCells(r.number, 1, r.number, nc);
+      r.font = { bold: true, color: { argb: 'FF1F3A68' } };
+      r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCE7F7' } };
+      return;
+    }
+    const b = d.brutos && d.brutos[k];
+    const vals = b ? b.map((v, j) => (e === 'subtotal' && j === 0 && v === null ? l[0] : e === 'subtotal' && v === null ? null : celulaExcel(v, tipos[j]))) : l;
+    if (e === 'subtotal' && b && b[0] !== null) vals[0] = b[0];
+    const r = ws.addRow(vals);
+    if (temGrupo && !e) r.outlineLevel = 1;
+    if (e === 'subtotal') { r.font = { bold: true }; r.eachCell((c) => { c.border = { top: { style: 'hair' } }; }); }
+  });
+  if (d.totais.length) {
+    const vals = d.totaisBrutos ? d.totaisBrutos.map((v, j) => (v === null ? (j === 0 ? 'TOTAL' : null) : v)) : d.totais;
+    const r = ws.addRow(vals); r.font = { bold: true }; r.eachCell((c) => { c.border = { top: { style: 'thin' } }; });
+  }
+  d.colunas.forEach((c, j) => {
+    const col = ws.getColumn(j + 1);
+    col.width = Math.min(45, Math.max(10, c.length + 2, ...d.linhas.slice(0, 400).filter((l, k) => (d.estilos || [])[k] !== 'grupo').map((l) => String(l[j] || '').length + 1)));
+    if (FORMATO_EXCEL[tipos[j]]) col.numFmt = FORMATO_EXCEL[tipos[j]];
+  });
+  if (!temGrupo && d.linhas.length) ws.autoFilter = { from: { row: cab.number, column: 1 }, to: { row: cab.number + d.linhas.length, column: nc } };
+  if (d.resumo) {
+    const rs = wb.addWorksheet('Resumo', { views: [{ state: 'frozen', ySplit: 3 }] });
+    rs.addRow([`${d.titulo} · ${d.resumo.titulo}`]).font = { bold: true, size: 13 };
+    rs.addRow([d.subtitulo || '']).font = { italic: true, color: { argb: 'FF555555' } };
+    const c2 = rs.addRow(d.resumo.colunas);
+    c2.font = { bold: true }; c2.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1FE' } }; });
+    d.resumo.linhas.forEach((l) => rs.addRow(l));
+    rs.addRow(d.resumo.total).font = { bold: true };
+    d.resumo.colunas.forEach((c, j) => {
+      const col = rs.getColumn(j + 1);
+      col.width = j === 0 ? Math.min(60, Math.max(20, ...d.resumo.linhas.map((l) => String(l[0]).length + 2))) : Math.max(12, c.length + 2);
+      if (j > 0) col.numFmt = FORMATO_EXCEL[d.resumo.tipos[j]] || '#,##0';
+    });
+    rs.autoFilter = { from: { row: c2.number, column: 1 }, to: { row: c2.number + d.resumo.linhas.length, column: d.resumo.colunas.length } };
+  }
   const buf = await wb.xlsx.writeBuffer();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = `${d.titulo.replace(/[^\wÀ-ú -]/g, '').replace(/\s+/g, '_')}.xlsx`;
+  const sufixo = d.resumo ? `_${d.resumo.titulo.replace(/^Resumo /, '')}` : '';
+  a.download = `${(d.titulo + sufixo).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w -]/g, '').trim().replace(/\s+/g, '_')}.xlsx`;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 

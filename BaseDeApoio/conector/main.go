@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-const versao = "1.3.0"
+const versao = "1.4.0"
 
 var (
 	pastaApp   string
