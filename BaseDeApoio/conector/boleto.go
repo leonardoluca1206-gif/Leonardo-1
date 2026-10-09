@@ -587,9 +587,9 @@ func AnalisarBoleto(ctx context.Context, p PedidoBoleto) (*Analise, error) {
 		res.Aceite = k.Aceite
 	}
 	if strings.TrimSpace(res.Benef.Nome) == "" {
-		a.motivo("Não encontrei o nome do beneficiário no ProSindW: informe a Entidade na contribuição %s (Tabelas > Tipos de Contribuição) ou digite o nome em Configurações > Banco de dados.", ct.Codigo)
+		a.motivo("Não encontrei o nome do beneficiário no ProSindW: informe a Entidade na contribuição %s (Tabelas > Tipos de Contribuição) ou o administrador digita o nome em Banco de dados > Dados do ProSindW.", ct.Codigo)
 	} else if res.Benef.Documento == "" {
-		a.aviso("Beneficiário sem CNPJ (%s). Digite o CNPJ em Configurações > Banco de dados para sair no boleto.", res.Benef.Origem)
+		a.aviso("Beneficiário sem CNPJ (%s). O administrador digita o CNPJ em Banco de dados > Dados do ProSindW para sair no boleto.", res.Benef.Origem)
 	}
 
 	// oposição
@@ -658,7 +658,7 @@ func AnalisarBoleto(ctx context.Context, p PedidoBoleto) (*Analise, error) {
 				if ab := resultadoAutoBanco(ct.Banco); ab != nil && ab.Mensagem != "" {
 					porque = " Conferência automática: " + ab.Mensagem
 				}
-				a.motivo("O cálculo do boleto do banco %s para a contribuição %s ainda não foi conferido com um boleto do ProSindW.%s Se precisar, confira manualmente em Configurações > Banco de dados (uma vez por banco).", ct.Banco, ct.Codigo, porque)
+				a.motivo("O cálculo do boleto do banco %s para a contribuição %s ainda não foi conferido com um boleto do ProSindW.%s Se precisar, o administrador confere manualmente em Banco de dados > Dados do ProSindW (uma vez por banco).", ct.Banco, ct.Codigo, porque)
 			}
 		}
 	}

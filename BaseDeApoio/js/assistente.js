@@ -6,11 +6,13 @@
 const Conector = {
   ativo: location.protocol === 'http:' && /^(127\.0\.0\.1|localhost)$/.test(location.hostname),
   status: null,
-  async api(caminho, opcoes = {}) {
+  async api(caminho, opcoes = {}) { return this.chamar(`/api/db/${caminho}`, opcoes); },
+  async auth(caminho, opcoes = {}) { return this.chamar(`/api/auth/${caminho}`, opcoes); },
+  async chamar(url, opcoes = {}) {
     if (!this.ativo) throw new Error('Abra o sistema pelo BaseDeApoio.exe para usar o banco de dados.');
     let r;
     try {
-      r = await fetch(`/api/db/${caminho}`, {
+      r = await fetch(url, {
         method: opcoes.method || (opcoes.body ? 'POST' : 'GET'),
         headers: { 'Content-Type': 'application/json', 'X-Base-Apoio': '1' },
         body: opcoes.body ? JSON.stringify(opcoes.body) : undefined,
@@ -19,6 +21,8 @@ const Conector = {
       throw new Error('O BaseDeApoio.exe não está respondendo. Abra o programa de novo.');
     }
     const j = await r.json().catch(() => ({ erro: `Resposta inválida (${r.status})` }));
+    // sessão vencida ou encerrada (usuário desativado): volta para a tela de login
+    if (r.status === 401 && !url.startsWith('/api/auth/')) window.dispatchEvent(new CustomEvent('sessao-expirada'));
     if (!r.ok) throw new Error(j.erro || r.statusText);
     return j;
   },
@@ -32,7 +36,7 @@ const Conector = {
       pill.className = `pill-banco ${ok ? 'on' : conf === false ? 'off' : rapido && conf ? '' : 'erro'}`;
       pill.innerHTML = `<i></i>${ok ? 'Banco conectado' : conf === false ? 'Banco não configurado' : rapido ? 'Banco configurado' : 'Banco sem conexão'}`;
       pill.title = s.erro || (s.banco ? `Firebird ${s.banco.versao_firebird || ''} · ${s.banco.empresas} empresas` : '');
-      pill.href = ok ? '#config/banco' : '#conexao';
+      pill.href = ok ? '#banco/dados' : '#banco/conexao';
     }
     return s;
   },
@@ -593,7 +597,7 @@ function telaAssistente() {
   app.innerHTML = `
   <div class="cabecalho-pagina"><div><h1>Assistente</h1>
     <p>Peça boletos e relatórios com os dados do ProSindW ou tire dúvidas de uso.</p></div>
-    <a class="botao sec" href="#config/banco">${ico('engrenagem')}Banco de dados</a></div>
+    ${Sessao.admin() ? `<a class="botao sec" href="#banco/dados">${ico('banco')}Banco de dados</a>` : ''}</div>
   <div class="cartao chat">
     <div class="chat-msgs" id="ch-msgs" aria-live="polite"></div>
     <div class="chat-sug chips" id="ch-sug"></div>
@@ -685,7 +689,7 @@ async function fluxoBoleto(pedido) {
     bot(`<p><strong>Não é possível gerar o boleto:</strong></p><ul class="lista-motivos">${a.motivos.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
       ${a.avisos.length ? `<ul class="lista-avisos">${a.avisos.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
       ${resumoBoleto(a.resumo)}
-      ${conf || benef ? `<p><a class="botao sec peq" href="#config/banco">${ico('engrenagem')}Abrir Banco de dados</a></p>` : ''}`);
+      ${(conf || benef) && Sessao.admin() ? `<p><a class="botao sec peq" href="#banco/dados">${ico('banco')}Abrir Banco de dados</a></p>` : (conf || benef) ? '<p class="sutil">Peça ao administrador para conferir em Banco de dados.</p>' : ''}`);
     return;
   }
   const r = a.resumo;
@@ -759,7 +763,7 @@ async function esquemaAgenda() {
   r.linhas.forEach(([tab, col]) => { (t[tab] = t[tab] || new Set()).add(col); });
   const ag = t.AGW_AGENDA || new Set();
   const primeira = (set, nomes) => nomes.find((n) => set && set.has(n)) || null;
-  if (!ag.size) return { ok: false, erro: '<p>Não encontrei a tabela <span class="mono">AGW_AGENDA</span> neste banco. O AgendaW usa o mesmo banco do ProSindW? Confira em Configurações &gt; Banco de dados.</p>' };
+  if (!ag.size) return { ok: false, erro: '<p>Não encontrei a tabela <span class="mono">AGW_AGENDA</span> neste banco. O AgendaW usa o mesmo banco do ProSindW? Confira em Banco de dados.</p>' };
   const e = {
     ok: true,
     dep: primeira(ag, ['NRDEPENDENTE', 'NRSEQUENCIADEP', 'NRSEQDEP', 'CDDEPENDENTE', 'NRDEPEN']),

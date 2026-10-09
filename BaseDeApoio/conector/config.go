@@ -56,6 +56,7 @@ type Config struct {
 	ContribPadrao  string                 `json:"contribuicao_padrao"`
 	PortaHTTP      int                    `json:"porta_http"`
 	Conferidos     map[string]Conferencia `json:"bancos_conferidos"` // por tipo de contribuição
+	Usuarios       []Usuario              `json:"usuarios"`          // acesso à Base de Apoio
 	senha          string
 }
 

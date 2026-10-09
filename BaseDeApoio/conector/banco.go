@@ -85,7 +85,7 @@ func dadosDaConfig() DadosConexao {
 	return DadosConexao{Host: cfg.Host, Porta: cfg.Porta, Caminho: cfg.Caminho, Usuario: cfg.Usuario, Senha: cfg.senha, WireCrypt: cfg.WireCrypt}
 }
 
-var errSemConfig = errors.New("banco de dados não configurado. Abra Configurações > Banco de dados")
+var errSemConfig = errors.New("banco de dados não configurado. O administrador configura em Banco de dados > Conexão")
 
 func conexao() (*sql.DB, error) {
 	dbMu.Lock()

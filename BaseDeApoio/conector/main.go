@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-const versao = "1.4.0"
+const versao = "1.5.0"
 
 var (
 	pastaApp   string
@@ -35,6 +35,7 @@ func main() {
 	semNavegador := flag.Bool("sem-navegador", false, "não abre o navegador")
 	pasta := flag.String("pasta", "", "pasta do sistema (index.html)")
 	porta := flag.Int("porta", 0, "porta local (padrão 8765)")
+	redefinir := flag.Bool("redefinir-acesso", false, "apaga os usuários da Base de Apoio (o próximo acesso cria o administrador de novo)")
 	flag.Parse()
 
 	exe, _ := os.Executable()
@@ -50,6 +51,15 @@ func main() {
 	pastaApp, _ = filepath.Abs(pastaApp)
 	pastaSaida = filepath.Join(pastaApp, "Arquivos gerados")
 	carregarConfig(pastaApp)
+	if *redefinir {
+		cfg.Usuarios = nil
+		if err := salvarConfig(); err != nil {
+			fmt.Println("Não consegui gravar a configuração:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Usuários apagados. Abra o BaseDeApoio.exe e crie o administrador de novo.")
+		return
+	}
 	portaHTTP = cfg.PortaHTTP
 	if *porta > 0 {
 		portaHTTP = *porta
@@ -68,19 +78,25 @@ func main() {
 		return
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/auth/estado", livre(apiAuthEstado))
+	mux.HandleFunc("/api/auth/primeiro", livre(apiAuthPrimeiro))
+	mux.HandleFunc("/api/auth/entrar", livre(apiAuthEntrar))
+	mux.HandleFunc("/api/auth/sair", livre(apiAuthSair))
+	mux.HandleFunc("/api/auth/senha", livre(apiAuthSenha))
+	mux.HandleFunc("/api/auth/usuarios", livre(apiAuthUsuarios))
 	mux.HandleFunc("/api/db/status", guarda(apiStatus))
-	mux.HandleFunc("/api/db/config", guarda(apiConfig))
-	mux.HandleFunc("/api/db/testar", guarda(apiTestar))
+	mux.HandleFunc("/api/db/config", guardaAdmin(apiConfig))
+	mux.HandleFunc("/api/db/testar", guardaAdmin(apiTestar))
 	mux.HandleFunc("/api/db/empresas", guarda(apiEmpresas))
 	mux.HandleFunc("/api/db/contribuicoes", guarda(apiContribuicoes))
 	mux.HandleFunc("/api/db/boleto/analisar", guarda(apiBoletoAnalisar))
 	mux.HandleFunc("/api/db/boleto/gerar", guarda(apiBoletoGerar))
-	mux.HandleFunc("/api/db/conferencia", guarda(apiConferencia))
+	mux.HandleFunc("/api/db/conferencia", guardaAdmin(apiConferencia))
 	mux.HandleFunc("/api/db/consulta", guarda(apiConsulta))
 	mux.HandleFunc("/api/db/relatorio/pdf", guarda(apiRelatorioPDF))
 	mux.HandleFunc("/api/db/arquivo", apiArquivo)
-	mux.HandleFunc("/api/db/detectar", guarda(apiDetectar))
-	mux.HandleFunc("/api/db/procurar", guarda(apiProcurar))
+	mux.HandleFunc("/api/db/detectar", guardaAdmin(apiDetectar))
+	mux.HandleFunc("/api/db/procurar", guardaAdmin(apiProcurar))
 	mux.Handle("/", arquivosEstaticos(pastaApp))
 
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
@@ -122,15 +138,24 @@ func arquivosEstaticos(dir string) http.Handler {
 	})
 }
 
-// guarda: só aceita chamadas da própria página servida por este programa.
-func guarda(h http.HandlerFunc) http.HandlerFunc {
+// guarda: só aceita chamadas da própria página servida por este programa, com usuário logado.
+func guarda(h http.HandlerFunc) http.HandlerFunc { return proteger(h, nivelUsuario) }
+
+// guardaAdmin: além disso, só administradores (conexão com o banco, conferência manual).
+func guardaAdmin(h http.HandlerFunc) http.HandlerFunc { return proteger(h, nivelAdmin) }
+
+// livre: rotas de acesso (login); cada uma confere a sessão quando precisa.
+func livre(h http.HandlerFunc) http.HandlerFunc { return proteger(h, nivelLivre) }
+
+const (
+	nivelLivre = iota
+	nivelUsuario
+	nivelAdmin
+)
+
+func proteger(h http.HandlerFunc, nivel int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		okHost := host == fmt.Sprintf("127.0.0.1:%d", portaHTTP) || host == fmt.Sprintf("localhost:%d", portaHTTP)
-		o := r.Header.Get("Origin")
-		okOrigem := o == "" || o == "http://"+host
-		if !okHost || !okOrigem {
-			http.Error(w, "origem não permitida", http.StatusForbidden)
+		if !origemOk(w, r) {
 			return
 		}
 		if r.Method == http.MethodOptions {
@@ -143,6 +168,9 @@ func guarda(h http.HandlerFunc) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
+		if nivel != nivelLivre && !exigeSessao(w, r, nivel == nivelAdmin) {
+			return
+		}
 		defer func() {
 			if e := recover(); e != nil {
 				log.Printf("ERRO %s: %v", r.URL.Path, e)
@@ -229,7 +257,10 @@ func infoBanco(ctx context.Context) (map[string]interface{}, error) {
 func apiStatus(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := ctxReq(r)
 	defer cancel()
-	res := map[string]interface{}{"conector": true, "configurado": strings.TrimSpace(cfg.Caminho) != "", "config": publica()}
+	res := map[string]interface{}{"conector": true, "configurado": strings.TrimSpace(cfg.Caminho) != ""}
+	if s := sessaoDe(r); s != nil && s.perfil == "admin" {
+		res["config"] = publica()
+	}
 	if strings.TrimSpace(cfg.Caminho) != "" && r.URL.Query().Get("rapido") != "1" {
 		if info, err := infoBanco(ctx); err != nil {
 			res["conectado"] = false
@@ -571,6 +602,10 @@ func apiArquivo(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
 	if host != fmt.Sprintf("127.0.0.1:%d", portaHTTP) && host != fmt.Sprintf("localhost:%d", portaHTTP) {
 		http.Error(w, "origem não permitida", http.StatusForbidden)
+		return
+	}
+	if sessaoDe(r) == nil {
+		http.Error(w, "faça login na Base de Apoio para abrir este arquivo", http.StatusUnauthorized)
 		return
 	}
 	nome := filepath.Clean("/" + r.URL.Query().Get("nome"))

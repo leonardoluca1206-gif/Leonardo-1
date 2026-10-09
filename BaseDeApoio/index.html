@@ -26,6 +26,8 @@
       <a href="#ajuda" data-rota="ajuda"><span class="ico" data-ico="ajuda"></span>Área de ajuda</a>
     </nav>
     <nav class="menu menu-rodape" aria-label="Administração">
+      <a href="#banco" data-rota="banco" data-admin hidden><span class="ico" data-ico="banco"></span>Banco de dados</a>
+      <a href="#usuarios" data-rota="usuarios" data-admin hidden><span class="ico" data-ico="usuarios"></span>Usuários</a>
       <a href="#config" data-rota="config"><span class="ico" data-ico="engrenagem"></span>Configurações</a>
     </nav>
   </aside>
@@ -34,11 +36,13 @@
     <header class="barra">
       <button class="icone-btn abre-menu" id="abre-menu" type="button" aria-label="Abrir menu"><span class="ico" data-ico="menu"></span></button>
       <nav class="migalha" id="migalha" aria-label="Você está em"></nav>
-      <a class="pill-banco off" id="pill-banco" href="#config/banco"><i></i>Banco</a>
+      <a class="pill-banco off" id="pill-banco" href="#banco"><i></i>Banco</a>
       <div class="tema" role="group" aria-label="Tema">
         <button type="button" data-tema="claro"><span class="ico" data-ico="sol"></span><span class="rot">Claro</span></button>
         <button type="button" data-tema="escuro"><span class="ico" data-ico="lua"></span><span class="rot">Escuro</span></button>
       </div>
+      <button class="usuario-btn" id="usuario-btn" type="button" aria-haspopup="menu" aria-expanded="false" hidden>
+        <span class="ico" data-ico="usuario"></span><span class="usuario-txt"><span class="nome"></span><span class="perfil"></span></span></button>
     </header>
     <main id="app" class="conteudo" tabindex="-1"></main>
   </div>

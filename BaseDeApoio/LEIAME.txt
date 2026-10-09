@@ -16,9 +16,25 @@ Sem o .exe também dá para abrir o index.html com dois cliques, mas aí não h�
 Os dados que você cadastrou pelo index.html ficam em outro "endereço" do navegador:
 leve-os com Configurações > Backup (exportar lá, importar no endereço http://127.0.0.1:8765).
 
-LIGAR AO BANCO DO PROSINDW
-Na primeira vez, o BaseDeApoio.exe já abre a tela de conexão (depois: Configurações >
-Banco de dados > Alterar conexão). Ela também abre sozinha se a conexão salva parar de funcionar.
+ACESSO (USUÁRIO E SENHA)
+Na primeira vez que abrir o BaseDeApoio.exe, o sistema pede para criar o ADMINISTRADOR
+(nome, usuário e senha). Depois disso, todos entram com usuário e senha.
+- Administrador: tudo, mais a tela Banco de dados e a tela Usuários (cadastrar, trocar perfil,
+  definir nova senha, desativar ou excluir).
+- Usuário: Assistente (boletos e relatórios), Comparar, Importação, Buscar relatórios e Ajuda.
+- Trocar a própria senha e Sair: botão com o seu nome, no alto à direita.
+- A sessão termina depois de 8 horas sem uso. 5 senhas erradas seguidas bloqueiam aquele usuário
+  por 1 minuto. Usuário desativado sai na hora.
+- As senhas ficam só como hash (PBKDF2) em %APPDATA%\BaseDeApoio\conector.json.
+- Perdeu a senha do único administrador? Feche o sistema e rode no Prompt de Comando:
+    BaseDeApoio.exe -redefinir-acesso
+  (apaga só os usuários; a conexão com o banco continua) e abra de novo para criar o administrador.
+Aberto sem o .exe (index.html direto) não há banco de dados e por isso não há login.
+
+LIGAR AO BANCO DO PROSINDW (tela Banco de dados, só administradores)
+Na primeira vez, depois de criar o administrador, o sistema já abre Banco de dados > Conexão.
+Ela também abre sozinha se a conexão salva parar de funcionar. A aba "Dados do ProSindW e
+boletos" mostra o que foi lido do banco e a conferência do cálculo dos boletos.
 1. Onde fica o banco: "Neste computador" ou "Em um servidor da rede" (IP e porta, padrão 3050).
    A tela mostra na hora se o Firebird está respondendo.
 2. Arquivo do banco: clique em Procurar… (janela do Windows) ou escolha um dos .fdb
@@ -49,7 +65,7 @@ mesmo nosso número, mesma tabela, mesmo log e entra na remessa normal do banco.
 O PDF fica em "Arquivos gerados\Boletos".
 
 CONFERÊNCIA DO CÁLCULO (AUTOMÁTICA)
-Ao conectar ao banco (e em Configurações > Banco de dados > Atualizar do banco), cada banco é
+Ao conectar ao banco (e em Banco de dados > Dados do ProSindW e boletos > Atualizar do banco), cada banco é
 conferido sozinho: o sistema pega o último boleto que o ProSindW gravou com linha digitável/código de
 barras, refaz o cálculo com os dados bancários da contribuição e compara. Igual = liberado para todas
 as contribuições daquele banco, sem precisar digitar nada.
@@ -121,7 +137,9 @@ Comparar / PROCV — cruza duas planilhas por CNPJ, CPF, matrícula etc.
 Importação de dados — gera TXT/CSV no layout; lê e valida arquivos recebidos.
 Buscar relatórios — caminho no menu, filtros da tela, prévia e campos de cada relatório.
 Área de ajuda — procedimentos, páginas de ajuda e layouts.
-Configurações — layouts, procedimentos, relatórios, banco de dados e backup.
+Banco de dados — conexão, dados do ProSindW e conferência dos boletos (administrador).
+Usuários — quem pode entrar (administrador).
+Configurações — layouts, procedimentos, relatórios e backup.
 
 PASTAS
 BaseDeApoio.exe       abre o sistema e liga ao banco (conector)

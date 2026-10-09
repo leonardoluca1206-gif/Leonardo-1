@@ -612,3 +612,29 @@ details.avancado summary { cursor: pointer; color: var(--texto-2); font-size: .9
 .passo-cx > :last-child { margin-bottom: 0; }
 [hidden] { display: none !important; }
 @media (max-width: 560px) { .campo-com-botao:has(.icone-so) { flex-wrap: nowrap; } }
+
+/* ============================================================ acesso (login) e usuário */
+[hidden] { display: none !important; }
+.em-acesso .shell { display: none; }
+.acesso { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--fundo); }
+.acesso-caixa { width: 100%; max-width: 420px; background: var(--superficie); border: 1px solid var(--borda); border-radius: 16px; padding: 28px 28px 24px; box-shadow: 0 10px 40px rgba(15, 30, 60, .08); }
+.acesso-caixa h1 { font-size: 1.5rem; margin: 18px 0 6px; }
+.acesso-caixa .campo { margin-bottom: 14px; }
+.acesso-caixa .botao.grande { width: 100%; justify-content: center; margin-top: 6px; }
+.acesso-caixa .aviso { margin: 6px 0 12px; }
+.acesso-marca { display: flex; align-items: center; gap: 10px; color: var(--primaria); font-weight: 800; font-size: 1.15rem; }
+.acesso-marca .ico { width: 30px; height: 30px; padding: 6px; border-radius: 9px; background: var(--primaria-suave); }
+.acesso-rodape { margin: 14px 0 0; text-align: center; font-size: .85rem; }
+.usuario-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--borda); background: var(--superficie); color: var(--texto); border-radius: 10px; padding: 5px 12px 5px 8px; font: inherit; cursor: pointer; }
+.usuario-btn:hover { border-color: var(--borda-forte); }
+.usuario-btn .ico { width: 24px; height: 24px; padding: 3px; border-radius: 50%; background: var(--primaria-suave); color: var(--primaria); }
+.usuario-txt { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.usuario-txt .nome { font-size: .85rem; font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usuario-txt .perfil { font-size: .72rem; color: var(--texto-3); }
+@media (max-width: 700px) { .usuario-txt { display: none; } .usuario-btn { padding: 5px; } }
+.cab-secao { margin: 4px 0 14px; }
+.cab-secao h2 { margin: 0 0 4px; }
+.acoes-linha { white-space: nowrap; text-align: right; }
+.acoes-linha .botao + .botao { margin-left: 6px; }
+.checar { display: flex; align-items: center; gap: 8px; font-size: .95rem; cursor: pointer; }
+.cabecalho-pagina .selo .ico { width: 14px; height: 14px; margin-right: 4px; }

@@ -59,6 +59,9 @@ const ICONES = {
   monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   servidor: '<rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01M12 6.5h4M12 17.5h4"/>',
   pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  usuario: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  usuarios: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2.1.7 3.5 2.8 3.5 5.7"/>',
+  cadeado: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
   banco: '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V5.5M4.5 12v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V12"/>',
 };
 function ico(nome, cls = '') { return `<span class="ico ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24">${ICONES[nome] || ''}</svg></span>`; }
@@ -77,7 +80,7 @@ function aplicarTema(t) {
 }
 function marcarTema() { $$('.tema button').forEach((b) => { const a = b.dataset.tema === temaAtual(); b.classList.toggle('ativo', a); b.setAttribute('aria-pressed', a); }); }
 
-const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', relatorios: 'Buscar relatórios', ajuda: 'Área de ajuda', config: 'Configurações', conexao: 'Conexão com o banco' };
+const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', relatorios: 'Buscar relatórios', ajuda: 'Área de ajuda', config: 'Configurações', banco: 'Banco de dados', usuarios: 'Usuários' };
 function migalha(rota, extra) {
   const m = $('#migalha'); if (!m) return;
   const partes = [`<a href="#inicio" title="Visão geral">${ico('casa', 'p')}</a><span class="sep">›</span><a href="#inicio" class="ocultar-cel">Base de Apoio</a>`];
@@ -212,7 +215,8 @@ function stat(valor, rotulo, classe = '') {
 }
 
 // ============================================================ roteamento
-const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, relatorios: telaRelatorios, config: telaConfig, conexao: telaConexao };
+const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, relatorios: telaRelatorios, config: telaConfig, banco: telaBanco, usuarios: telaUsuarios,
+  conexao: () => { location.replace('#banco/conexao'); } };
 
 function rotear() {
   const hash = location.hash.replace(/^#/, '') || 'inicio';
@@ -1155,7 +1159,7 @@ async function telaConfig(params) {
   if (sub === 'procedimentos') C.aba = 'procedimentos';
   if (sub === 'backup') C.aba = 'backup';
   if (sub === 'relatorios') C.aba = 'relatorios';
-  if (sub === 'banco') C.aba = 'banco';
+  if (sub === 'banco') { location.replace('#banco/dados'); return; }
   if (!sub) C.aba = 'layouts';
   app.innerHTML = `
   <div class="cabecalho-pagina"><div><h1>Configurações</h1><p>Gerencie layouts, procedimentos de ajuda e relatórios.</p></div>
@@ -1164,7 +1168,6 @@ async function telaConfig(params) {
   <div class="abas"><button class="aba ${C.aba === 'layouts' ? 'ativa' : ''}" data-a="layouts" type="button">Layouts</button>
     <button class="aba ${C.aba === 'procedimentos' ? 'ativa' : ''}" data-a="procedimentos" type="button">Procedimentos de ajuda</button>
     <button class="aba ${C.aba === 'relatorios' ? 'ativa' : ''}" data-a="relatorios" type="button">Relatórios</button>
-    <button class="aba ${C.aba === 'banco' ? 'ativa' : ''}" data-a="banco" type="button">Banco de dados</button>
     <button class="aba ${C.aba === 'backup' ? 'ativa' : ''}" data-a="backup" type="button">Backup</button></div>
   <div id="cf-corpo"></div>`;
   $$('.abas .aba').forEach((b) => { b.onclick = () => {
@@ -1173,7 +1176,7 @@ async function telaConfig(params) {
     if (location.hash === `#${h}`) rotear(); else location.hash = h;
   }; });
   const sair = $('#cf-sair'); if (sair) sair.onclick = () => { tokenAdmin = ''; sessionStorageSet('tokenAdmin', ''); location.hash = 'inicio'; };
-  if (C.aba === 'layouts') listaLayoutsConfig(); else if (C.aba === 'banco') configBanco(); else if (C.aba === 'backup') telaBackup(); else if (C.aba === 'relatorios') configRelatorios(); else listaProcsConfig();
+  if (C.aba === 'layouts') listaLayoutsConfig(); else if (C.aba === 'backup') telaBackup(); else if (C.aba === 'relatorios') configRelatorios(); else listaProcsConfig();
 }
 
 function telaLogin(params) {
@@ -1483,7 +1486,7 @@ async function configBanco() {
       <tr><th>Servidor</th><td>${esc(c.host || '127.0.0.1')}:${esc(c.porta || 3050)}${['127.0.0.1', 'localhost', ''].includes(String(c.host || '').toLowerCase()) ? ' <span class="sutil">(este computador)</span>' : ''}</td></tr>
       <tr><th>Banco</th><td class="mono">${esc(c.caminho)}</td></tr>
       <tr><th>Usuário</th><td>${esc(c.usuario || 'SYSDBA')}${c.tem_senha ? ' · senha guardada' : ' · <span class="selo alerta">sem senha</span>'}</td></tr></tbody></table>` : '<p class="sutil">Nenhum banco configurado ainda.</p>'}
-    <div class="acoes" style="margin-top:12px"><a class="botao ${st.configurado ? 'sec' : ''}" href="#conexao">${ico('banco')}${st.configurado ? 'Alterar conexão' : 'Configurar conexão'}</a></div>
+    <div class="acoes" style="margin-top:12px"><a class="botao ${st.configurado ? 'sec' : ''}" href="#banco/conexao">${ico('banco')}${st.configurado ? 'Alterar conexão' : 'Configurar conexão'}</a></div>
   </div>
   <div class="cartao">
     <div class="cartao-titulo"><h2>Dados do ProSindW</h2>
@@ -1660,20 +1663,16 @@ async function painelConferencia(bt) {
 // ============================================================ conexão com o banco (tela própria; abre sozinha na primeira vez)
 const CX = { arquivos: null };
 
-async function telaConexao() {
-  migalha('config', 'Conexão com o banco');
-  if (!Conector.ativo) { location.hash = 'config/banco'; return; }
-  app.innerHTML = '<div class="cartao"><span class="carregando"></span> Lendo configuração…</div>';
+async function telaConexao(alvo) {
+  if (!Conector.ativo) { configBanco(); return; }
+  alvo.innerHTML = '<div class="cartao"><span class="carregando"></span> Lendo configuração…</div>';
   let st;
   try { st = await Conector.atualizar(true); } catch (e) { falha(e); return; }
-  // já configurado e Configurações protegida: pede a senha de administrador
-  try { const m = await api('/api/status'); if (st.configurado && m.admin_protegido && !tokenAdmin) { telaLoginConexao(); return; } } catch { /* sem motor local */ }
   const c = st.config || {};
   const ehLocal = !c.host || ['127.0.0.1', 'localhost'].includes(String(c.host).toLowerCase());
-  app.innerHTML = `
-  <div class="cabecalho-pagina"><div><h1>${st.configurado ? 'Conexão com o banco' : 'Vamos conectar ao banco do ProSindW'}</h1>
-    <p>${st.configurado ? 'Altere onde está o banco e o acesso ao Firebird.' : 'Três passos: onde está o banco, qual é o arquivo e o acesso ao Firebird.'}</p></div>
-    ${st.configurado ? `<a class="botao sec" href="#config/banco">${ico('voltar')}Voltar</a>` : ''}</div>
+  alvo.innerHTML = `
+  <div class="cab-secao"><h2>${st.configurado ? 'Conexão com o banco' : 'Vamos conectar ao banco do ProSindW'}</h2>
+    <p class="sutil">${st.configurado ? 'Altere onde está o banco e o acesso ao Firebird.' : 'Três passos: onde está o banco, qual é o arquivo e o acesso ao Firebird.'}</p></div>
   <div class="conexao">
     <section class="cartao passo-cx">
       <div class="passo-tit"><span class="num">1</span><h2>Onde fica o banco?</h2></div>
@@ -1801,7 +1800,7 @@ async function telaConexao() {
         await Conector.api('config', { body: { ...dados(), usuario_prosind: $('#cx-usp').value.trim() } });
         await Conector.atualizar(false);
         mostrar(`<div class="conectado">${ico('ok')}<div><strong>Conectado ao ProSindW</strong><p>Firebird ${esc(r.versao_firebird || '')} · ${fmtN(r.empresas)} empresas. O cálculo dos boletos de cada banco está sendo conferido sozinho com os boletos do ProSindW.</p>
-          <div class="acoes"><a class="botao" href="#config/banco">${ico('banco')}Ver dados do ProSindW</a><a class="botao sec" href="#assistente">${ico('chat')}Abrir o Assistente</a></div></div></div>`);
+          <div class="acoes"><a class="botao" href="#banco/dados">${ico('banco')}Ver dados do ProSindW</a><a class="botao sec" href="#assistente">${ico('chat')}Abrir o Assistente</a></div></div></div>`);
         toast('Conexão salva.');
       } catch (e) { mostrar(`<div class="aviso erro">${esc(e.message)}</div>`); }
     }
@@ -1830,15 +1829,190 @@ function fmtTamanho(b) {
   return `${v.toLocaleString('pt-BR', { maximumFractionDigits: i >= 2 ? 1 : 0 })} ${u[i]}`;
 }
 
-function telaLoginConexao() {
-  app.innerHTML = `<div class="cartao" style="max-width:420px;margin:40px auto"><h2>Acesso às Configurações</h2>
-    <form id="lg"><div class="campo"><label for="lg-s">Senha de administrador</label><input type="password" id="lg-s" autocomplete="current-password"></div>
-    <button class="botao" type="submit">Entrar</button></form></div>`;
-  $('#lg-s').focus();
-  $('#lg').onsubmit = async (e) => {
+// ============================================================ acesso (login), usuários e Banco de dados
+// Usuários e sessões ficam no BaseDeApoio.exe. Aberto sem o .exe (index.html direto), não há banco nem login.
+const Sessao = {
+  usuario: null,
+  admin() { return !Conector.ativo || !!(this.usuario && this.usuario.perfil === 'admin'); },
+};
+
+function aplicarSessaoNaTela() {
+  $$('[data-admin]').forEach((el) => { el.hidden = !Sessao.admin(); });
+  const b = $('#usuario-btn');
+  if (!b) return;
+  b.hidden = !Sessao.usuario;
+  if (Sessao.usuario) {
+    $('.nome', b).textContent = Sessao.usuario.nome || Sessao.usuario.login;
+    $('.perfil', b).textContent = Sessao.usuario.perfil === 'admin' ? 'Administrador' : 'Usuário';
+  }
+}
+
+// Tela cheia de acesso: "entrar" ou "primeiro" (cria o administrador). Resolve quando entrar.
+function telaAcesso(modo, aviso, aoEntrar) {
+  let box = $('#acesso');
+  if (!box) { box = document.createElement('div'); box.id = 'acesso'; box.className = 'acesso'; document.body.appendChild(box); }
+  document.body.classList.add('em-acesso');
+  const primeiro = modo === 'primeiro';
+  box.innerHTML = `<form class="acesso-caixa" id="ac-form" autocomplete="on" novalidate>
+    <div class="acesso-marca">${ico('cadeado')}<span>Base de Apoio</span></div>
+    <h1>${primeiro ? 'Primeiro acesso' : 'Entrar'}</h1>
+    <p class="sutil">${primeiro ? 'Crie o usuário administrador. Ele cadastra os demais usuários e é o único que configura o banco de dados.' : 'Informe seu usuário e senha da Base de Apoio.'}</p>
+    ${aviso ? `<div class="aviso alerta">${esc(aviso)}</div>` : ''}
+    ${primeiro ? '<div class="campo"><label for="ac-nome">Seu nome</label><input type="text" id="ac-nome" autocomplete="name" required></div>' : ''}
+    <div class="campo"><label for="ac-login">Usuário</label><input type="text" id="ac-login" autocomplete="username" autocapitalize="none" spellcheck="false" required ${primeiro ? 'placeholder="ex.: admin"' : ''}></div>
+    <div class="campo"><label for="ac-senha">Senha</label>
+      <div class="campo-com-botao"><input type="password" id="ac-senha" autocomplete="${primeiro ? 'new-password' : 'current-password'}" required>
+      <button type="button" class="botao sec icone-so" id="ac-ver" aria-label="Mostrar senha" title="Mostrar senha">${ico('olho')}</button></div></div>
+    ${primeiro ? '<div class="campo"><label for="ac-senha2">Repita a senha</label><input type="password" id="ac-senha2" autocomplete="new-password" required></div><p class="sutil" style="margin-top:-6px">Mínimo de 6 caracteres.</p>' : ''}
+    <div id="ac-erro" aria-live="polite"></div>
+    <button class="botao grande" type="submit" id="ac-ok">${primeiro ? 'Criar administrador e entrar' : 'Entrar'}</button>
+    ${primeiro ? '' : '<p class="sutil acesso-rodape">Esqueceu a senha? Peça ao administrador para definir uma nova em Usuários.</p>'}
+  </form>`;
+  const erro = (m) => { $('#ac-erro').innerHTML = m ? `<div class="aviso erro">${esc(m)}</div>` : ''; };
+  $('#ac-ver').onclick = () => { const c = $('#ac-senha'); c.type = c.type === 'password' ? 'text' : 'password'; };
+  setTimeout(() => (primeiro ? $('#ac-nome') : $('#ac-login')).focus(), 30);
+  $('#ac-form').onsubmit = async (e) => {
     e.preventDefault();
-    try { const r = await api('/api/login', { method: 'POST', body: { senha: $('#lg-s').value } }); tokenAdmin = r.token; sessionStorageSet('tokenAdmin', r.token); telaConexao(); } catch (er) { falha(er); }
+    const login = $('#ac-login').value.trim().toLowerCase(); const senha = $('#ac-senha').value;
+    if (!login || !senha) { erro('Preencha usuário e senha.'); return; }
+    if (primeiro && senha !== $('#ac-senha2').value) { erro('As duas senhas não são iguais.'); return; }
+    const bt = $('#ac-ok'); bt.disabled = true; erro('');
+    try {
+      const r = primeiro ? await Conector.auth('primeiro', { body: { nome: $('#ac-nome').value.trim(), login, senha } })
+        : await Conector.auth('entrar', { body: { login, senha } });
+      Sessao.usuario = r.usuario;
+      box.remove(); document.body.classList.remove('em-acesso');
+      aplicarSessaoNaTela();
+      if (primeiro) toast(`Administrador ${r.usuario.login} criado.`);
+      aoEntrar && aoEntrar();
+    } catch (er) { erro(er.message); bt.disabled = false; $('#ac-senha').select(); }
   };
+}
+
+async function garantirSessao() {
+  if (!Conector.ativo) return;
+  for (;;) {
+    let e;
+    try { e = await Conector.auth('estado'); } catch (er) {
+      document.body.classList.add('em-acesso');
+      const box = document.createElement('div'); box.id = 'acesso'; box.className = 'acesso';
+      box.innerHTML = `<div class="acesso-caixa"><h1>Sem resposta</h1><div class="aviso erro">${esc(er.message)}</div><button class="botao" type="button" onclick="location.reload()">Tentar de novo</button></div>`;
+      document.body.appendChild(box);
+      await new Promise(() => {}); // fica parado até recarregar
+    }
+    if (e.logado) { Sessao.usuario = e.usuario; aplicarSessaoNaTela(); return; }
+    await new Promise((ok) => telaAcesso(e.primeiro_acesso ? 'primeiro' : 'entrar', '', ok));
+    return;
+  }
+}
+
+window.addEventListener('sessao-expirada', () => {
+  if ($('#acesso')) return;
+  Sessao.usuario = null;
+  aplicarSessaoNaTela();
+  telaAcesso('entrar', 'Sua sessão terminou. Entre de novo para continuar.', () => rotear());
+});
+
+async function sair() {
+  // a tela de login aparece antes: respostas 401 que cheguem depois não a redesenham
+  Sessao.usuario = null; CH.msgs = []; CH.contribs = null; CH.agw = null;
+  aplicarSessaoNaTela();
+  telaAcesso('entrar', '', () => { if (location.hash === '#inicio') rotear(); else location.hash = 'inicio'; });
+  try { await Conector.auth('sair', { method: 'POST' }); } catch { /* já saiu */ }
+}
+
+async function trocarSenha() {
+  const v = await modal('Trocar minha senha', `
+    <div class="campo"><label for="ts-atual">Senha atual</label><input type="password" id="ts-atual" autocomplete="current-password"></div>
+    <div class="campo"><label for="ts-nova">Nova senha</label><input type="password" id="ts-nova" autocomplete="new-password"></div>
+    <div class="campo"><label for="ts-nova2">Repita a nova senha</label><input type="password" id="ts-nova2" autocomplete="new-password"></div>`, [
+    { rotulo: 'Cancelar', classe: 'sec', valor: () => null },
+    { rotulo: 'Trocar senha', principal: true, valor: () => ({ atual: $('#ts-atual').value, nova: $('#ts-nova').value, nova2: $('#ts-nova2').value }) },
+  ]);
+  if (!v) return;
+  if (v.nova !== v.nova2) { toast('As duas senhas novas não são iguais.', 'erro'); return; }
+  try { await Conector.auth('senha', { body: { atual: v.atual, nova: v.nova } }); toast('Senha trocada.'); } catch (e) { falha(e); }
+}
+
+function menuUsuario(btn) {
+  const itens = [{ icone: 'chave', rotulo: 'Trocar minha senha', acao: trocarSenha }];
+  if (Sessao.admin()) itens.push({ icone: 'usuarios', rotulo: 'Usuários', acao: () => { location.hash = 'usuarios'; } }, { icone: 'banco', rotulo: 'Banco de dados', acao: () => { location.hash = 'banco'; } });
+  itens.push('-', { icone: 'sair', rotulo: 'Sair', acao: sair });
+  abrirMenuSuspenso(btn, itens);
+}
+
+function exigeAdmin() {
+  if (Sessao.admin()) return true;
+  app.innerHTML = `<div class="cartao" style="max-width:560px;margin:40px auto"><h2>${ico('cadeado')} Somente administradores</h2>
+    <p>Esta tela é usada para configurar o sistema. Peça a um administrador da Base de Apoio.</p><a class="botao sec" href="#inicio">${ico('voltar')}Voltar</a></div>`;
+  return false;
+}
+
+// Banco de dados: tela exclusiva (conexão, dados lidos do ProSindW, conferência dos boletos)
+async function telaBanco(params) {
+  if (!exigeAdmin()) return;
+  let sub = (params && params[0]) || '';
+  if (!['conexao', 'dados'].includes(sub)) {
+    const s = Conector.ativo ? await Conector.atualizar(true).catch(() => null) : null;
+    sub = s && s.configurado === false ? 'conexao' : 'dados';
+  }
+  migalha('banco', sub === 'conexao' ? 'Conexão' : 'Dados do ProSindW');
+  app.innerHTML = `
+  <div class="cabecalho-pagina"><div><h1>Banco de dados</h1>
+    <p>Conexão com o Firebird do ProSindW e do AgendaW, dados lidos do banco e conferência do cálculo dos boletos.</p></div>
+    <span class="selo">${ico('cadeado')}Somente administradores</span></div>
+  <div class="abas"><button class="aba ${sub === 'conexao' ? 'ativa' : ''}" data-s="conexao" type="button">Conexão</button>
+    <button class="aba ${sub === 'dados' ? 'ativa' : ''}" data-s="dados" type="button">Dados do ProSindW e boletos</button></div>
+  <div id="cf-corpo"></div>`;
+  $$('.abas .aba').forEach((b) => { b.onclick = () => { location.hash = `banco/${b.dataset.s}`; }; });
+  if (sub === 'conexao') telaConexao($('#cf-corpo')); else configBanco();
+}
+
+// Usuários (somente administradores)
+async function telaUsuarios() {
+  if (!exigeAdmin()) return;
+  if (!Conector.ativo) { app.innerHTML = '<div class="cartao"><p>Os usuários ficam no BaseDeApoio.exe. Abra o sistema por ele.</p></div>'; return; }
+  app.innerHTML = '<div class="cartao"><span class="carregando"></span> Lendo usuários…</div>';
+  let lst;
+  try { lst = (await Conector.auth('usuarios')).itens; } catch (e) { falha(e); return; }
+  const eu = Sessao.usuario ? Sessao.usuario.login : '';
+  app.innerHTML = `
+  <div class="cabecalho-pagina"><div><h1>Usuários</h1><p>Quem pode entrar na Base de Apoio. Administradores também configuram o banco de dados e cadastram usuários.</p></div>
+    <button class="botao" id="us-novo" type="button">${ico('mais')}Novo usuário</button></div>
+  <div class="cartao"><div class="tabela-wrap sem-limite"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr></thead><tbody>
+    ${lst.map((u) => `<tr><td><strong>${esc(u.nome)}</strong>${u.login === eu ? ' <span class="selo azul">você</span>' : ''}</td><td class="mono">${esc(u.login)}</td>
+      <td>${u.perfil === 'admin' ? '<span class="selo ok">Administrador</span>' : '<span class="selo">Usuário</span>'}</td>
+      <td>${u.ativo ? 'Ativo' : '<span class="selo alerta">Desativado</span>'}</td><td class="sutil">${esc(u.ultimo_acesso || '—')}</td>
+      <td class="acoes-linha"><button class="botao sec peq" type="button" data-ed="${esc(u.login)}">${ico('lapis')}Editar</button>
+        ${u.login !== eu ? `<button class="botao sec peq perigo" type="button" data-ex="${esc(u.login)}">${ico('lixeira')}Excluir</button>` : ''}</td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="sutil" style="margin-top:10px">As senhas ficam guardadas só como código (hash) no computador do BaseDeApoio.exe. Ninguém consegue ler a senha, nem o administrador: se alguém esquecer, defina uma nova aqui.</p></div>`;
+  $('#us-novo').onclick = () => editarUsuario(null);
+  $$('[data-ed]').forEach((b) => { b.onclick = () => editarUsuario(lst.find((u) => u.login === b.dataset.ed)); });
+  $$('[data-ex]').forEach((b) => { b.onclick = async () => {
+    if (!await confirmar('Excluir usuário', `Excluir o usuário ${b.dataset.ex}? Ele não vai mais conseguir entrar.`, 'Excluir')) return;
+    try { await Conector.auth(`usuarios?login=${encodeURIComponent(b.dataset.ex)}`, { method: 'DELETE' }); toast('Usuário excluído.'); telaUsuarios(); } catch (e) { falha(e); }
+  }; });
+}
+
+async function editarUsuario(u) {
+  const novo = !u;
+  const proprio = u && Sessao.usuario && u.login === Sessao.usuario.login;
+  const v = await modal(novo ? 'Novo usuário' : `Editar ${u.login}`, `
+    <div class="campo"><label for="eu-nome">Nome</label><input type="text" id="eu-nome" value="${esc(u ? u.nome : '')}"></div>
+    <div class="campo"><label for="eu-login">Usuário (para entrar)</label><input type="text" id="eu-login" value="${esc(u ? u.login : '')}" ${novo ? '' : 'disabled'} autocapitalize="none" spellcheck="false" placeholder="ex.: maria.silva"></div>
+    <div class="campo"><label for="eu-perfil">Perfil</label><select id="eu-perfil" ${proprio ? 'disabled' : ''}>
+      <option value="usuario" ${u && u.perfil === 'usuario' ? 'selected' : ''}>Usuário: Assistente, relatórios, boletos e ajuda</option>
+      <option value="admin" ${u && u.perfil === 'admin' ? 'selected' : ''}>Administrador: também banco de dados e usuários</option></select></div>
+    <div class="campo"><label for="eu-senha">${novo ? 'Senha' : 'Nova senha'} <small class="sutil">${novo ? '(mínimo 6 caracteres)' : '(em branco = manter)'}</small></label><input type="password" id="eu-senha" autocomplete="new-password"></div>
+    ${novo || proprio ? '' : `<label class="checar"><input type="checkbox" id="eu-ativo" ${u.ativo ? 'checked' : ''}> Ativo (pode entrar)</label>`}`, [
+    { rotulo: 'Cancelar', classe: 'sec', valor: () => null },
+    { rotulo: 'Salvar', principal: true, valor: () => ({ novo, nome: $('#eu-nome').value.trim(), login: $('#eu-login').value.trim().toLowerCase(), perfil: $('#eu-perfil').value,
+      senha: $('#eu-senha').value, ativo: $('#eu-ativo') ? $('#eu-ativo').checked : true }) },
+  ]);
+  if (!v) return;
+  if (novo && !v.senha) { toast('Informe a senha do novo usuário.', 'erro'); return; }
+  try { await Conector.auth('usuarios', { body: v }); toast(novo ? 'Usuário criado.' : 'Usuário salvo.'); telaUsuarios(); } catch (e) { falha(e); }
 }
 
 // ============================================================ início
@@ -1846,15 +2020,22 @@ pintarIcones();
 marcarTema();
 $$('.tema button').forEach((b) => { b.onclick = () => aplicarTema(b.dataset.tema); });
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', marcarTema); } catch { /* navegador antigo */ }
-Conector.atualizar(true).then(async (s) => {
-  const inicial = !location.hash || location.hash === '#' || location.hash === '#inicio';
-  if (s && Conector.ativo && !s.configurado) { if (location.hash !== '#conexao') location.hash = 'conexao'; return; }
-  if (s && s.configurado) {
-    const t = await Conector.atualizar(false);
-    if (t && t.configurado && !t.conectado && inicial) location.hash = 'conexao';
-  }
-});
 $('#abre-menu').onclick = () => document.body.classList.toggle('menu-aberto');
 $('#fundo-menu').onclick = () => document.body.classList.remove('menu-aberto');
+$('#usuario-btn').onclick = (e) => { e.stopPropagation(); menuUsuario(e.currentTarget); };
 window.addEventListener('resize', fecharMenuSuspenso);
-rotear();
+(async () => {
+  await garantirSessao();
+  aplicarSessaoNaTela();
+  const inicial = !location.hash || location.hash === '#' || location.hash === '#inicio';
+  const s = await Conector.atualizar(true);
+  // banco ainda não configurado (ou parou): o administrador vai direto para a conexão
+  if (s && Conector.ativo && Sessao.admin()) {
+    if (!s.configurado) { if (!location.hash.startsWith('#banco')) { location.hash = 'banco/conexao'; return; } }
+    else {
+      const t = await Conector.atualizar(false);
+      if (t && t.configurado && !t.conectado && inicial) { location.hash = 'banco/conexao'; return; }
+    }
+  }
+  rotear();
+})();
