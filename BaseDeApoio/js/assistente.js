@@ -329,6 +329,57 @@ function situacaoSocio(p, w, a, rot) {
 const COL = (campo, rotulo, tipo = 'texto') => ({ campo, rotulo, tipo });
 const RELATORIOS_BD = [
   {
+    // AgendaW: não existe no sistema. Dependente = agenda (AGW_AGENDA) ligada a PSW_DEPENDENTES pelo número do dependente.
+    id: 'agw_atend_dep', titulo: 'Atendimentos de dependentes (AgendaW)', sistema: 'AgendaW',
+    palavras: /\b(atendiment\w*|agendament\w*|consultas?|agenda)\b.*\bdependentes?\b|\bdependentes?\b.*\b(atendiment\w*|atendid\w*|agendament\w*|consultas?|agenda)\b/,
+    cobre: /atendiment|consulta|agenda|horario|ausencia/,
+    colunas: [COL('DTDATA', 'Data', 'data'), COL('HORARIO', 'Horário'), COL('NRINSCRICAO', 'Inscrição', 'int'), COL('NMSOCIO', 'Titular'), COL('NMDEPENDENTE', 'Dependente'),
+      COL('DSPARENTESCO', 'Parentesco'), COL('DTNASCDEP', 'Nascimento', 'data'), COL('NMCONVEN', 'Convênio / profissional'), COL('ESPECIALIDADE', 'Especialidade'),
+      COL('DSTRATAM', 'Tratamento'), COL('SITUACAO', 'Situação'), COL('VALOR', 'Valor', 'moeda')],
+    totais: ['VALOR'],
+    async preparar(p, texto) {
+      // período: "de 01/09/2026 a 30/09/2026", "01/09/2026 até 30/09/2026" ou "09/2026"
+      if (!p.de) {
+        const ds = (texto.match(RX_DATA) || []).map(dataISO).filter(Boolean);
+        if (ds.length >= 2) { p.de = ds[0]; p.ate = ds[1]; } else if (ds.length === 1) { p.de = ds[0]; p.ate = ds[0]; }
+        else if (p.mes && p.ano) { p.de = `${p.ano}-${String(p.mes).padStart(2, '0')}-01`; p.ate = `${p.ano}-${String(p.mes).padStart(2, '0')}-${ultimoDia(p.ano, p.mes)}`; }
+      }
+      if (!p.de) return { perguntar: 'Qual o período? (ex.: 01/09/2026 a 30/09/2026)' };
+      if (p.de > p.ate) [p.de, p.ate] = [p.ate, p.de];
+      const e = await esquemaAgenda();
+      if (!e.ok) return { erro: e.erro };
+      p.agw = e;
+      // situação: mostra só os atendidos quando a agenda grava o texto (ATENDIDO); com códigos, traz todos agrupados por situação
+      p.agwSit = null; p.agwSitTodas = [];
+      if (e.sit) {
+        const r = await Conector.api('consulta', { body: { sql: `SELECT A.${e.sit} AS SIT, COUNT(*) AS N FROM AGW_AGENDA A WHERE A.DTDATA BETWEEN ? AND ? AND A.${e.dep} > 0 GROUP BY 1`, params: [p.de, p.ate], limite: 100 } });
+        p.agwSitTodas = r.linhas.map((l) => String(l[0] ?? '').trim()).filter(Boolean);
+        const n = nrm(texto);
+        const querTodos = /\b(todos|todas|agendamentos?|qualquer situac\w*|todas as situac\w*)\b/.test(n);
+        const atend = p.agwSitTodas.find((v) => /^atend/i.test(v));
+        if (!querTodos && atend) p.agwSit = atend;
+        if (/\bausen|\bfalt/.test(n)) p.agwSit = p.agwSitTodas.find((v) => /^(ausen|falt)/i.test(v)) || p.agwSit;
+      }
+      return null;
+    },
+    montar(p, texto) {
+      const e = p.agw;
+      const sel = [`A.DTDATA`, `A.${e.hora} AS HORARIO`, 'A.NRINSCRICAO', 'S.NMSOCIO', 'D.NMDEPENDENTE', 'D.DSPARENTESCO', 'D.DTNASCIMENTO AS DTNASCDEP'];
+      const joins = [`JOIN PSW_DEPENDENTES D ON D.NRINSCRSOC = A.NRINSCRICAO AND D.NRSEQUENCIADEP = A.${e.dep}`, 'LEFT JOIN PSW_SOCIOS S ON S.NRINSCRICAO = A.NRINSCRICAO'];
+      if (e.conv) { joins.push('LEFT JOIN AGW_CONVENIOS C ON C.CDCONVEN = A.CDCONVEN'); sel.push(`C.${e.conv} AS NMCONVEN`); }
+      if (e.conv && e.esp) { joins.push('LEFT JOIN AGW_ATIVIDADES ATV ON ATV.CDRAMATI = C.CDRAMATI'); sel.push('ATV.DSRAMATI AS ESPECIALIDADE'); }
+      if (e.trat) { joins.push('LEFT JOIN AGW_TIPOSTRATAM T ON T.CDTRATAM = A.CDTRATAM'); sel.push(`T.${e.trat} AS DSTRATAM`); }
+      if (e.sit) sel.push(`A.${e.sit} AS SITUACAO`);
+      if (e.valor) sel.push(`A.${e.valor} AS VALOR`);
+      const w = ['A.DTDATA BETWEEN ? AND ?', `A.${e.dep} > 0`]; const a = [p.de, p.ate];
+      if (p.agwSit) { w.push(`A.${e.sit} = ?`); a.push(p.agwSit); }
+      const rot = [`Período ${fmtData(p.de)} a ${fmtData(p.ate)}`, 'Somente dependentes de sócios'];
+      rot.push(p.agwSit ? `Situação: ${p.agwSit}` : e.sit ? `Todas as situações (${p.agwSitTodas.join(', ') || 'nenhuma no período'})` : 'Situação: coluna não encontrada');
+      return { sql: `SELECT ${sel.join(', ')} FROM AGW_AGENDA A ${joins.join(' ')} WHERE ${w.join(' AND ')} ORDER BY A.DTDATA, A.${e.hora}, D.NMDEPENDENTE`,
+        params: a, subtitulo: rot.join(' · '), agruparPadrao: !p.agwSit && e.sit ? 'situacao' : null };
+    },
+  },
+  {
     id: 'socios_situacao', titulo: 'Quantidade de sócios por situação e sexo', palavras: /\b(quantos|quantas|quantidade|total|estatistica)\b.*\b(socios?|socias|filiados?|associados?)\b|\bsocios? por situacao\b/,
     colunas: [COL('INSITUACAO', 'Situação'), COL('MASC', 'Masculino', 'int'), COL('FEM', 'Feminino', 'int'), COL('OUTROS', 'Não informado', 'int'), COL('TOTAL', 'Total', 'int')],
     totais: ['MASC', 'FEM', 'OUTROS', 'TOTAL'],
@@ -526,13 +577,14 @@ function escolherRelatorio(texto) {
 }
 
 // ============================================================ tela do chat
-const CH = { msgs: [], pendente: null, ocupado: false, contribs: null };
+const CH = { msgs: [], pendente: null, ocupado: false, contribs: null, agw: null };
 const SUGESTOES_CHAT = [
   'Gere um boleto de 300 reais com referência 08/2026 vencimento 10/10/2026 para a empresa 25',
   'Sócios do sexo masculino filiados a partir de 01/01/2020 que moram em SC e têm dependentes',
   'Contribuições em aberto da referência 08/2026',
   'Empresas que têm contribuição, por grupo, em Excel',
   'Empresas ativas',
+  'Atendimentos do período 01/09/2026 até 30/09/2026 somente dos dependentes',
   'Aniversariantes de outubro',
   'Como emitir segunda via de boleto?',
 ];
@@ -697,6 +749,33 @@ async function gerarBoleto(pedido) {
   (el) => { const c = $('[data-a=copiar]', el); if (c) c.onclick = () => copiar(b.linha_digitavel); }, true);
 }
 
+// ============================================================ estrutura das tabelas da agenda (AgendaW)
+// Os nomes de algumas colunas da agenda variam entre versões: o conector lê a estrutura no banco e escolhe.
+async function esquemaAgenda() {
+  if (CH.agw) return CH.agw;
+  const r = await Conector.api('consulta', { body: { sql: `SELECT TRIM(RF.RDB$RELATION_NAME) AS T, TRIM(RF.RDB$FIELD_NAME) AS C FROM RDB$RELATION_FIELDS RF
+    WHERE RF.RDB$RELATION_NAME IN ('AGW_AGENDA', 'AGW_CONVENIOS', 'AGW_TIPOSTRATAM', 'AGW_ATIVIDADES')`, params: [], limite: 2000 } });
+  const t = {};
+  r.linhas.forEach(([tab, col]) => { (t[tab] = t[tab] || new Set()).add(col); });
+  const ag = t.AGW_AGENDA || new Set();
+  const primeira = (set, nomes) => nomes.find((n) => set && set.has(n)) || null;
+  if (!ag.size) return { ok: false, erro: '<p>Não encontrei a tabela <span class="mono">AGW_AGENDA</span> neste banco. O AgendaW usa o mesmo banco do ProSindW? Confira em Configurações &gt; Banco de dados.</p>' };
+  const e = {
+    ok: true,
+    dep: primeira(ag, ['NRDEPENDENTE', 'NRSEQUENCIADEP', 'NRSEQDEP', 'CDDEPENDENTE', 'NRDEPEN']),
+    sit: primeira(ag, ['DSSITUACAO', 'SITUACAO', 'INSITUACAO', 'INSITUACAOAGE', 'INSTATUS', 'INATENDIDO']),
+    hora: primeira(ag, ['HRHORARIO', 'HRAGENDA', 'HRINICIO', 'CDHORARI']) || 'CDHORARI',
+    valor: primeira(ag, ['TXATEND', 'VLSERVIC', 'VLATEND', 'VLAGENDA', 'VLCONSULTA']),
+    conv: primeira(t.AGW_CONVENIOS, ['NMCONVEN', 'NMCONVENIO', 'NMRESCON']),
+    esp: !!(t.AGW_CONVENIOS && t.AGW_CONVENIOS.has('CDRAMATI') && t.AGW_ATIVIDADES && t.AGW_ATIVIDADES.has('DSRAMATI')),
+    trat: primeira(t.AGW_TIPOSTRATAM, ['DSTRATAM', 'DSTIPOTRATAM', 'NMTRATAM']),
+    colunas: [...ag].sort(),
+  };
+  if (!e.dep) return { ok: false, erro: `<p>Não achei na agenda (<span class="mono">AGW_AGENDA</span>) a coluna que guarda o dependente. Colunas encontradas:</p><p class="mono" style="font-size:.8rem">${esc(e.colunas.join(', '))}</p><p class="sutil">Me envie essa lista para ajustar o relatório.</p>` };
+  CH.agw = e;
+  return e;
+}
+
 // ============================================================ fluxo: relatório
 async function fluxoRelatorio(texto) {
   const cands = escolherRelatorio(texto);
@@ -762,6 +841,11 @@ async function prepararRelatorio(mod, p, texto) {
       p.codEmpresa = lst[0].codigo; p.nomeEmpresa = `${lst[0].codigo} - ${lst[0].nome}`;
     }
   }
+  if (mod.preparar) {
+    const r = await mod.preparar(p, texto);
+    if (r && r.perguntar) { parar(); perguntar(r.perguntar, [], (v) => { const ds = (v.match(RX_DATA) || []).map(dataISO).filter(Boolean); if (ds.length) { p.de = ds[0]; p.ate = ds[1] || ds[0]; } return prepararRelatorio(mod, p, texto); }); return; }
+    if (r && r.erro) { parar(); bot(r.erro); return; }
+  }
   const q = mod.montar(p, texto);
   const res = await Conector.api('consulta', { body: { sql: q.sql, params: q.params, limite: 20000 } });
   parar();
@@ -797,10 +881,15 @@ const DIMENSOES = [
     } },
   { chave: 'contribuicao', rotulo: 'Contribuição', rx: /\b(tipos? de )?contribuic(ao|oes)\b/, campos: ['CDCONTRIBUICAO'],
     nome: (k, linhas) => { const d = linhas[0]('DSTIPO'); return d ? `${k} - ${d}` : k; } },
+  { chave: 'convenio', rotulo: 'Convênio / profissional', rx: /\b(convenios?|profissiona\w*|medic[oa]s?|dentistas?)\b/, campos: ['NMCONVEN'] },
+  { chave: 'especialidade', rotulo: 'Especialidade', rx: /\bespecialidades?\b/, campos: ['ESPECIALIDADE'] },
+  { chave: 'titular', rotulo: 'Titular', rx: /\b(titular(es)?|socios?)\b/, campos: ['NMSOCIO'] },
+  { chave: 'dependente', rotulo: 'Dependente', rx: /\bdependentes?\b/, campos: ['NMDEPENDENTE'] },
+  { chave: 'data', rotulo: 'Data', rx: /\b(data|dia|dias)\b/, campos: ['DTDATA'], nome: (k) => fmtData(k) },
   { chave: 'empresa', rotulo: 'Empresa', rx: /\bempresas?\b/, campos: ['NMEMPRESA', 'EMPRESA'] },
   { chave: 'cidade', rotulo: 'Cidade', rx: /\b(cidades?|municipios?)\b/, campos: ['NMCIDADE'] },
   { chave: 'uf', rotulo: 'UF', rx: /\b(uf|estados?)\b/, campos: ['CDUF'] },
-  { chave: 'situacao', rotulo: 'Situação', rx: /\bsituac(ao|oes)\b/, campos: ['INSITUACAO'] },
+  { chave: 'situacao', rotulo: 'Situação', rx: /\bsituac(ao|oes)\b/, campos: ['INSITUACAO', 'SITUACAO'] },
   { chave: 'referencia', rotulo: 'Referência', rx: /\b(referencias?|competencias?)\b/, campos: ['COMPETENCIA'] },
   { chave: 'sexo', rotulo: 'Sexo', rx: /\bsexo\b/, campos: ['CDSEXO'] },
   { chave: 'parentesco', rotulo: 'Parentesco', rx: /\bparentesco\b/, campos: ['DSPARENTESCO'] },
@@ -848,7 +937,7 @@ function mostrarRelatorio(mod, q, res, texto = '') {
   const fmtSoma = (v, c) => (v === null ? '' : c.tipo === 'moeda' ? fmtMoeda(v) : String(Math.round(v * 100) / 100));
   const linhaSoma = (soma, rotulo) => soma.map((v, j) => (j === 0 && v === null ? rotulo : j === 0 ? `${rotulo} ${fmtSoma(v, cols[0])}` : fmtSoma(v, cols[j])));
 
-  const dim = agrupamentoPedido(texto, mod);
+  const dim = agrupamentoPedido(texto, mod) || (q.agruparPadrao ? DIMENSOES.find((d) => d.chave === q.agruparPadrao) : null);
   const grupos = dim && res.linhas.length ? agrupar(dim, res, idx) : null;
   const linhas = []; const brutos = []; const estilos = [];
   let resumo = null;

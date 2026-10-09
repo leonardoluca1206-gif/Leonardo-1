@@ -103,7 +103,15 @@ RELATÓRIOS DO AGENDAW
 Buscar relatórios inclui o catálogo do AgendaW (168 relatórios e documentos: atendimentos,
 convênios, agenda, lembretes, recibos, fichas...). Use o filtro Sistema > AgendaW.
 No Assistente, pedidos sobre agenda, atendimentos, consultas, horários ou faltas procuram
-primeiro no AgendaW. Para atualizar o catálogo com uma pasta Reports nova (requer Python):
+primeiro no AgendaW.
+Relatório com dados do banco (não existe no AgendaW):
+  "Atendimentos do período 01/09/2026 até 30/09/2026 somente dos dependentes"
+  Mostra data, horário, titular, dependente, parentesco, convênio/profissional, especialidade,
+  tratamento, situação e valor. Só atendidos; diga "agendamentos" ou "todos" para todas as
+  situações (agrupado por situação), "ausências" para as faltas, e "por convênio",
+  "por especialidade", "por titular" ou "em Excel" como nos outros relatórios.
+  O SELECT para rodar no IBExpert está em tools/sql/agendaw_atendimentos_dependentes.sql.
+Para atualizar o catálogo com uma pasta Reports nova (requer Python):
   python tools/extrai_reports.py C:\AgendaW\Reports dados/relatorios_agendaw.js AgendaW
 As consultas são somente leitura. PDFs em "Arquivos gerados\Relatorios".
 
