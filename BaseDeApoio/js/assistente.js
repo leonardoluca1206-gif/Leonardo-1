@@ -339,7 +339,7 @@ const RELATORIOS_BD = [
     cobre: /atendiment|consulta|agenda|horario|ausencia/,
     colunas: [COL('DTDATA', 'Data', 'data'), COL('HORARIO', 'Horário'), COL('NRINSCRICAO', 'Inscrição', 'int'), COL('NMSOCIO', 'Titular'), COL('NMDEPENDENTE', 'Dependente'),
       COL('DSPARENTESCO', 'Parentesco'), COL('DTNASCDEP', 'Nascimento', 'data'), COL('NMCONVEN', 'Convênio / profissional'), COL('ESPECIALIDADE', 'Especialidade'),
-      COL('DSTRATAM', 'Tratamento'), COL('SITUACAO', 'Situação'), COL('VALOR', 'Valor', 'moeda')],
+      COL('DSBENEFI', 'Serviço'), COL('DSTRATAM', 'Tratamento'), COL('SITUACAO', 'Situação'), COL('VALOR', 'Taxa', 'moeda')],
     totais: ['VALOR'],
     async preparar(p, texto) {
       // período: "de 01/09/2026 a 30/09/2026", "01/09/2026 até 30/09/2026" ou "09/2026"
@@ -356,7 +356,7 @@ const RELATORIOS_BD = [
       // situação: mostra só os atendidos quando a agenda grava o texto (ATENDIDO); com códigos, traz todos agrupados por situação
       p.agwSit = null; p.agwSitTodas = [];
       if (e.sit) {
-        const r = await Conector.api('consulta', { body: { sql: `SELECT A.${e.sit} AS SIT, COUNT(*) AS N FROM AGW_AGENDA A WHERE A.DTDATA BETWEEN ? AND ? AND A.${e.dep} > 0 GROUP BY 1`, params: [p.de, p.ate], limite: 100 } });
+        const r = await Conector.api('consulta', { body: { sql: `SELECT A.${e.sit} AS SIT, COUNT(*) AS N FROM AGW_AGENDA A WHERE A.DTDATA BETWEEN ? AND ? AND ${e.filtroDep} GROUP BY 1`, params: [p.de, p.ate], limite: 100 } });
         p.agwSitTodas = r.linhas.map((l) => String(l[0] ?? '').trim()).filter(Boolean);
         const n = nrm(texto);
         const querTodos = /\b(todos|todas|agendamentos?|qualquer situac\w*|todas as situac\w*)\b/.test(n);
@@ -368,18 +368,21 @@ const RELATORIOS_BD = [
     },
     montar(p, texto) {
       const e = p.agw;
-      const sel = [`A.DTDATA`, `A.${e.hora} AS HORARIO`, 'A.NRINSCRICAO', 'S.NMSOCIO', 'D.NMDEPENDENTE', 'D.DSPARENTESCO', 'D.DTNASCIMENTO AS DTNASCDEP'];
-      const joins = [`JOIN PSW_DEPENDENTES D ON D.NRINSCRSOC = A.NRINSCRICAO AND D.NRSEQUENCIADEP = A.${e.dep}`, 'LEFT JOIN PSW_SOCIOS S ON S.NRINSCRICAO = A.NRINSCRICAO'];
+      // o nome do dependente gravado na agenda (NMDEPEN) vale mesmo se o cadastro do dependente mudou
+      const nomeDep = e.nomeDep ? `COALESCE(NULLIF(TRIM(A.${e.nomeDep}), ''), D.NMDEPENDENTE)` : 'D.NMDEPENDENTE';
+      const sel = [`A.DTDATA`, `A.${e.hora} AS HORARIO`, 'A.NRINSCRICAO', 'S.NMSOCIO', `${nomeDep} AS NMDEPENDENTE`, 'D.DSPARENTESCO', 'D.DTNASCIMENTO AS DTNASCDEP'];
+      const joins = [`${e.nomeDep ? 'LEFT ' : ''}JOIN PSW_DEPENDENTES D ON D.NRINSCRSOC = A.NRINSCRICAO AND D.NRSEQUENCIADEP = A.${e.dep}`, 'LEFT JOIN PSW_SOCIOS S ON S.NRINSCRICAO = A.NRINSCRICAO'];
+      if (e.benef) { joins.push(`LEFT JOIN AGW_BENEFICIOS B ON B.CDBENEFI = A.CDBENEFI`); sel.push(`B.${e.benef} AS DSBENEFI`); }
       if (e.conv) { joins.push('LEFT JOIN AGW_CONVENIOS C ON C.CDCONVEN = A.CDCONVEN'); sel.push(`C.${e.conv} AS NMCONVEN`); }
       if (e.conv && e.esp) { joins.push('LEFT JOIN AGW_ATIVIDADES ATV ON ATV.CDRAMATI = C.CDRAMATI'); sel.push('ATV.DSRAMATI AS ESPECIALIDADE'); }
       if (e.trat) { joins.push('LEFT JOIN AGW_TIPOSTRATAM T ON T.CDTRATAM = A.CDTRATAM'); sel.push(`T.${e.trat} AS DSTRATAM`); }
       if (e.sit) sel.push(`A.${e.sit} AS SITUACAO`);
       if (e.valor) sel.push(`A.${e.valor} AS VALOR`);
-      const w = ['A.DTDATA BETWEEN ? AND ?', `A.${e.dep} > 0`]; const a = [p.de, p.ate];
+      const w = ['A.DTDATA BETWEEN ? AND ?', e.filtroDep]; const a = [p.de, p.ate];
       if (p.agwSit) { w.push(`A.${e.sit} = ?`); a.push(p.agwSit); }
       const rot = [`Período ${fmtData(p.de)} a ${fmtData(p.ate)}`, 'Somente dependentes de sócios'];
       rot.push(p.agwSit ? `Situação: ${p.agwSit}` : e.sit ? `Todas as situações (${p.agwSitTodas.join(', ') || 'nenhuma no período'})` : 'Situação: coluna não encontrada');
-      return { sql: `SELECT ${sel.join(', ')} FROM AGW_AGENDA A ${joins.join(' ')} WHERE ${w.join(' AND ')} ORDER BY A.DTDATA, A.${e.hora}, D.NMDEPENDENTE`,
+      return { sql: `SELECT ${sel.join(', ')} FROM AGW_AGENDA A ${joins.join(' ')} WHERE ${w.join(' AND ')} ORDER BY A.DTDATA, A.${e.hora}, 5`,
         params: a, subtitulo: rot.join(' · '), agruparPadrao: !p.agwSit && e.sit ? 'situacao' : null };
     },
   },
@@ -758,7 +761,7 @@ async function gerarBoleto(pedido) {
 async function esquemaAgenda() {
   if (CH.agw) return CH.agw;
   const r = await Conector.api('consulta', { body: { sql: `SELECT TRIM(RF.RDB$RELATION_NAME) AS T, TRIM(RF.RDB$FIELD_NAME) AS C FROM RDB$RELATION_FIELDS RF
-    WHERE RF.RDB$RELATION_NAME IN ('AGW_AGENDA', 'AGW_CONVENIOS', 'AGW_TIPOSTRATAM', 'AGW_ATIVIDADES')`, params: [], limite: 2000 } });
+    WHERE RF.RDB$RELATION_NAME IN ('AGW_AGENDA', 'AGW_CONVENIOS', 'AGW_TIPOSTRATAM', 'AGW_ATIVIDADES', 'AGW_BENEFICIOS')`, params: [], limite: 2000 } });
   const t = {};
   r.linhas.forEach(([tab, col]) => { (t[tab] = t[tab] || new Set()).add(col); });
   const ag = t.AGW_AGENDA || new Set();
@@ -766,15 +769,20 @@ async function esquemaAgenda() {
   if (!ag.size) return { ok: false, erro: '<p>Não encontrei a tabela <span class="mono">AGW_AGENDA</span> neste banco. O AgendaW usa o mesmo banco do ProSindW? Confira em Banco de dados.</p>' };
   const e = {
     ok: true,
-    dep: primeira(ag, ['NRDEPENDENTE', 'NRSEQUENCIADEP', 'NRSEQDEP', 'CDDEPENDENTE', 'NRDEPEN']),
+    dep: primeira(ag, ['CDDEPEND', 'NRDEPENDENTE', 'NRSEQUENCIADEP', 'NRSEQDEP', 'CDDEPENDENTE', 'NRDEPEN']),
+    nomeDep: primeira(ag, ['NMDEPEN', 'NMDEPENDENTE']),
     sit: primeira(ag, ['DSSITUACAO', 'SITUACAO', 'INSITUACAO', 'INSITUACAOAGE', 'INSTATUS', 'INATENDIDO']),
     hora: primeira(ag, ['HRHORARIO', 'HRAGENDA', 'HRINICIO', 'CDHORARI']) || 'CDHORARI',
     valor: primeira(ag, ['TXATEND', 'VLSERVIC', 'VLATEND', 'VLAGENDA', 'VLCONSULTA']),
     conv: primeira(t.AGW_CONVENIOS, ['NMCONVEN', 'NMCONVENIO', 'NMRESCON']),
     esp: !!(t.AGW_CONVENIOS && t.AGW_CONVENIOS.has('CDRAMATI') && t.AGW_ATIVIDADES && t.AGW_ATIVIDADES.has('DSRAMATI')),
     trat: primeira(t.AGW_TIPOSTRATAM, ['DSTRATAM', 'DSTIPOTRATAM', 'NMTRATAM']),
+    benef: ag.has('CDBENEFI') && t.AGW_BENEFICIOS && t.AGW_BENEFICIOS.has('CDBENEFI') ? primeira(t.AGW_BENEFICIOS, ['DSBENEFI', 'NMBENEFI']) : null,
     colunas: [...ag].sort(),
   };
+  // linha de dependente: como nos relatórios do AgendaW, o nome do dependente preenchido (ou o código > 0)
+  if (e.dep || e.nomeDep) e.filtroDep = `(${[e.dep && `COALESCE(A.${e.dep}, 0) > 0`, e.nomeDep && `COALESCE(TRIM(A.${e.nomeDep}), '') <> ''`].filter(Boolean).join(' OR ')})`;
+  if (!e.dep && e.nomeDep) e.dep = 'NRINSCRICAO * 0 - 1'; // sem código: o JOIN não acha cadastro e fica só o nome da agenda
   if (!e.dep) return { ok: false, erro: `<p>Não achei na agenda (<span class="mono">AGW_AGENDA</span>) a coluna que guarda o dependente. Colunas encontradas:</p><p class="mono" style="font-size:.8rem">${esc(e.colunas.join(', '))}</p><p class="sutil">Me envie essa lista para ajustar o relatório.</p>` };
   CH.agw = e;
   return e;
