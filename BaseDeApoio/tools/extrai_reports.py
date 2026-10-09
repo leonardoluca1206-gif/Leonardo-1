@@ -312,6 +312,10 @@ def calculado(texto, refs):
         and not re.search(r'"\]\s+-\s+\[', t)
 
 
+# rodapé padrão dos relatórios ("Sistema AgendaW X.XX", "Sistema ProSindW 9.99"): não é rótulo de campo
+RODAPE_SIS = re.compile(r'(?i)\bsistema\s+\w+\s+(x\.xx|\d+\.\d+)')
+
+
 def ler_frf(caminho):
     b = open(caminho, 'rb').read()
     objs = objetos_frf(b)
@@ -362,7 +366,7 @@ def ler_frf(caminho):
                 if c is None or (c.get('_calc') and not o['calc']):
                     campos[f.upper()] = {'codigo': f.upper(), 'dataset': ds, 'rotulo': '', 'x': o['x'], 'y': o['y'],
                                          'expr': texto[:80] if texto.strip() != f'[{ds}."{f}"]' else '', '_calc': o['calc']}
-        elif not texto.startswith('[') and 'ProSind' not in texto and len(texto) <= 60 \
+        elif not texto.startswith('[') and 'ProSind' not in texto and not RODAPE_SIS.search(texto) and len(texto) <= 60 \
                 and (nome.lower().startswith(('memo', 'texto', 'label', 'titulo', 'lbl')) or 'Memo' in tipo):
             memos_rot.append((o, texto))
 

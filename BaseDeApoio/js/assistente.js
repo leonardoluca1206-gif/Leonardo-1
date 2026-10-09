@@ -83,6 +83,7 @@ function intencao(texto) {
   if (/^\s*(como|onde|o que|oque|por que|porque|qual o caminho|pra que|para que)\b/.test(t) || /\?\s*$/.test(t) && !/\b(quantos|quantas)\b/.test(t)) return 'ajuda';
   if (/\b(relatorio|relacao|listagem|lista|listar|liste|quantos|quantas|quantidade|total de|mostre|mostrar|traga|trazer|gere|gerar|imprimir)\b/.test(t)) return 'relatorio';
   if (escolherRelatorio(texto).length) return 'relatorio';
+  if (/\b(agenda|agendamentos?|atendimentos|horarios|faltas|ausencias)\b/.test(t)) return 'relatorio'; // assuntos do AgendaW: procura no catálogo
   return 'ajuda';
 }
 
@@ -517,7 +518,7 @@ function filtrosTexto(p) {
 }
 
 // assuntos que nenhum modelo cobre: vão para o catálogo de relatórios do ProSindW
-const FORA_DOS_MODELOS = /\b(convenio|conveniad|beneficio|lancament|mensalidade|anuidade|agenda|homolog|votac|desconto|recibo|etiqueta|carteirinh|cheque|caixa|estoque|nao socio|nao-socio|escritorio|acordo|carne)/;
+const FORA_DOS_MODELOS = /\b(atendiment|consulta medic|horario|ausencia|prontuario|atestado|convenio|conveniad|beneficio|lancament|mensalidade|anuidade|agenda|homolog|votac|desconto|recibo|etiqueta|carteirinh|cheque|caixa|estoque|nao socio|nao-socio|escritorio|acordo|carne)/;
 function escolherRelatorio(texto) {
   const n = nrm(texto);
   const fora = FORA_DOS_MODELOS.exec(n);
@@ -701,11 +702,15 @@ async function fluxoRelatorio(texto) {
   const cands = escolherRelatorio(texto);
   if (!cands.length) {
     // procura no catálogo de relatórios do ProSindW
-    const r = await Motor.api(`/api/relatorios?q=${encodeURIComponent(texto.replace(/\b(relat[óo]rio|gere|gerar|me d[êe]|quero|preciso|lista(gem)?|de|do|da|dos|das)\b/gi, ' '))}`);
+    const q = encodeURIComponent(texto.replace(/\b(relat[óo]rio|gere|gerar|me d[êe]|quero|preciso|lista(gem)?|de|do|da|dos|das|agendaw|no agenda|do agenda)\b/gi, ' '));
+    // assuntos da agenda (consultas, atendimentos, horários) ficam no AgendaW
+    const agenda = /\b(agendaw?|agendad\w*|agendamentos?|atendiment\w*|atendid\w*|consultas?|horarios?|ausencias?|faltas?|profissiona\w*|especialidades?|prontuarios?|atestados?|odonto\w*|medic\w*|sessoes|tratamentos?)\b/.test(nrm(texto));
+    let r = agenda ? await Motor.api(`/api/relatorios?q=${q}&sistema=AgendaW`) : null;
+    if (!r || !(r.resultados || []).length) r = await Motor.api(`/api/relatorios?q=${q}`);
     parar();
-    const top = (r.resultados || []).slice(0, 3);
-    bot(`<p>Ainda não gero esse relatório aqui com os dados do banco.${top.length ? ' No ProSindW ele está em:' : ''}</p>
-      ${top.map((x) => `<p><a href="#relatorios/${encodeURIComponent(x.id)}"><strong>${esc(x.titulo)}</strong></a><br><small class="sutil">${esc((x.menu && x.menu.caminho) || '')}</small></p>`).join('')}
+    const top = (r.resultados || []).slice(0, agenda ? 5 : 3);
+    bot(`<p>Ainda não gero esse relatório aqui com os dados do banco.${top.length ? ' No sistema ele está em:' : ''}</p>
+      ${top.map((x) => `<p><a href="#relatorios/${encodeURIComponent(x.id)}"><strong>${esc(x.titulo)}</strong></a> <span class="selo azul">${esc(x.sistema || 'ProSindW')}</span><br><small class="sutil">${esc((x.menu && x.menu.caminho) || '')}</small></p>`).join('')}
       <p class="sutil">Gero aqui: ${RELATORIOS_BD.map((x) => esc(x.titulo)).join(' · ')}.</p>`);
     return;
   }

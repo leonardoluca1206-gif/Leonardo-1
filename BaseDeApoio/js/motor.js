@@ -936,7 +936,7 @@ const Motor = (() => {
   // ============================================================ AJUDA: busca
   const STOP = new Set(`a o as os um uma uns umas de da do das dos em no na nos nas para pra por com sem que qual quais
 como onde quando porque e ou se eu faco fazer faz fazemos consigo posso pode podemos devo deve ter tem tenho
-me meu minha meus minhas seu sua isso isto esse essa este esta ao aos sobre sistema prosind prosindw
+me meu minha meus minhas seu sua isso isto esse essa este esta ao aos sobre sistema prosind prosindw agendaw
 ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`.split(/\s+/));
   const SINONIMOS = [
     ['boleto', 'boletos', 'bloqueto', 'bloquetos', 'bloq'], ['socio', 'socios', 'associado', 'associados', 'filiado', 'filiados'],

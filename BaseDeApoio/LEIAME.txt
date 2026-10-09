@@ -97,7 +97,14 @@ Filtros de sócios que podem ser combinados na mesma frase:
 - situação (afastados, aposentados, desfiliados), empresa, com/sem e-mail, com celular, WhatsApp
 - ordem: "por sexo", "por cidade", "por empresa", "por filiação"
 O relatório mostra, logo abaixo do título, os filtros que foram entendidos.
-Para os demais, o Assistente mostra onde o relatório está no ProSindW.
+Para os demais, o Assistente mostra onde o relatório está no ProSindW ou no AgendaW.
+
+RELATÓRIOS DO AGENDAW
+Buscar relatórios inclui o catálogo do AgendaW (168 relatórios e documentos: atendimentos,
+convênios, agenda, lembretes, recibos, fichas...). Use o filtro Sistema > AgendaW.
+No Assistente, pedidos sobre agenda, atendimentos, consultas, horários ou faltas procuram
+primeiro no AgendaW. Para atualizar o catálogo com uma pasta Reports nova (requer Python):
+  python tools/extrai_reports.py C:\AgendaW\Reports dados/relatorios_agendaw.js AgendaW
 As consultas são somente leitura. PDFs em "Arquivos gerados\Relatorios".
 
 MÓDULOS
