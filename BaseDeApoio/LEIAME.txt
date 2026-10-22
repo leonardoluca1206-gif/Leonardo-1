@@ -1,0 +1,170 @@
+BASE DE APOIO
+=============
+
+Não precisa instalar nada (nem Python).
+
+COMO ABRIR
+1. Clique com o botão direito no .zip > "Extrair tudo".
+2. Abra a pasta extraída.
+3. Dois cliques em BaseDeApoio.exe.
+   - Abre uma janela preta (deixe aberta) e o navegador em http://127.0.0.1:8765
+   - Se o Windows avisar "O Windows protegeu o computador": Mais informações > Executar assim mesmo.
+   - Para fechar o sistema, feche a janela preta.
+
+Sem o .exe também dá para abrir o index.html com dois cliques, mas aí não há ligação com o banco
+(Assistente só responde dúvidas; boletos e relatórios do banco ficam indisponíveis).
+Os dados que você cadastrou pelo index.html ficam em outro "endereço" do navegador:
+leve-os com Configurações > Backup (exportar lá, importar no endereço http://127.0.0.1:8765).
+
+ACESSO (USUÁRIO E SENHA)
+Na primeira vez que abrir o BaseDeApoio.exe, o sistema pede para criar o ADMINISTRADOR
+(nome, usuário e senha). Depois disso, todos entram com usuário e senha.
+- Administrador: tudo, mais a tela Banco de dados e a tela Usuários (cadastrar, trocar perfil,
+  definir nova senha, desativar ou excluir).
+- Usuário: Assistente (boletos e relatórios), Comparar, Importação, Buscar relatórios e Ajuda.
+- Trocar a própria senha e Sair: botão com o seu nome, no alto à direita.
+- A sessão termina depois de 8 horas sem uso. 5 senhas erradas seguidas bloqueiam aquele usuário
+  por 1 minuto. Usuário desativado sai na hora.
+- As senhas ficam só como hash (PBKDF2) em %APPDATA%\BaseDeApoio\conector.json.
+- Perdeu a senha do único administrador? Feche o sistema e rode no Prompt de Comando:
+    BaseDeApoio.exe -redefinir-acesso
+  (apaga só os usuários; a conexão com o banco continua) e abra de novo para criar o administrador.
+Aberto sem o .exe (index.html direto) não há banco de dados e por isso não há login.
+
+LIGAR AO BANCO DO PROSINDW (tela Banco de dados, só administradores)
+Na primeira vez, depois de criar o administrador, o sistema já abre Banco de dados > Conexão.
+Ela também abre sozinha se a conexão salva parar de funcionar. A aba "Dados do ProSindW e
+boletos" mostra o que foi lido do banco e a conferência do cálculo dos boletos.
+1. Onde fica o banco: "Neste computador" ou "Em um servidor da rede" (IP e porta, padrão 3050).
+   A tela mostra na hora se o Firebird está respondendo.
+2. Arquivo do banco: clique em Procurar… (janela do Windows) ou escolha um dos .fdb
+   encontrados neste computador. No servidor, digite o caminho como o SERVIDOR enxerga o arquivo.
+   Ex.: C:\Sist\ProSindW\prosindw.fdb
+3. Usuário e senha do Firebird (ex.: SYSDBA) > Salvar e conectar.
+A configuração fica em %APPDATA%\BaseDeApoio\conector.json (senha protegida pelo Windows:
+só este usuário, neste computador, consegue ler). Por isso ela continua valendo quando você
+substitui a pasta do sistema por uma versão nova.
+
+DADOS LIDOS DO PROSINDW (ao conectar; botão "Atualizar do banco")
+- Beneficiário: entidade informada na contribuição (Tabelas > Tipos de Contribuição > Entidade);
+  sem entidade, o cadastro do sindicato. O que faltar pode ser completado em "Complementos".
+- Banco, agência, conta, convênio, carteira, local de pagamento, instruções e contrato de remessa.
+- Nosso número: último emitido e próximo (mesmo sequencial do ProSindW).
+
+Se não conectar:
+- "usuário ou senha incorretos": confira usuário/senha do Firebird.
+- "não encontrou o arquivo do banco": o caminho deve ser o do servidor, não de uma pasta mapeada.
+- "recusou a conexão" / "não respondeu": IP, porta 3050 e firewall do servidor.
+- Método de login: no firebird.conf do servidor use  AuthServer = Srp256, Srp, Legacy_Auth
+
+BOLETOS PELO ASSISTENTE
+Exemplo: "Gere um boleto de 300 reais com referência 08/2026 vencimento 10/10/2026 para a empresa 25"
+(a empresa pode ser código, CNPJ ou nome). O Assistente pergunta o que faltar e mostra um resumo
+antes de gravar. O boleto é gravado pelo próprio ProSindW (procedure PSW_GERA_BLOQUETO_FB_EMP):
+mesmo nosso número, mesma tabela, mesmo log e entra na remessa normal do banco.
+O PDF fica em "Arquivos gerados\Boletos".
+
+CONFERÊNCIA DO CÁLCULO (AUTOMÁTICA)
+Ao conectar ao banco (e em Banco de dados > Dados do ProSindW e boletos > Atualizar do banco), cada banco é
+conferido sozinho: o sistema pega o último boleto que o ProSindW gravou com linha digitável/código de
+barras, refaz o cálculo com os dados bancários da contribuição e compara. Igual = liberado para todas
+as contribuições daquele banco, sem precisar digitar nada.
+- "Diferente do ProSindW": o cálculo não bate; o banco fica bloqueado e a tela mostra as duas linhas.
+  Confira os dados bancários da contribuição no ProSindW e clique em Atualizar do banco.
+- "A conferir": ainda não há boleto daquele banco no ProSindW para comparar. Assim que o ProSindW
+  emitir um, a conferência acontece sozinha. Se precisar antes, use "Conferir manualmente"
+  (digite a linha digitável de um boleto impresso pelo ProSindW).
+
+Regras verificadas (motivo aparece quando não dá para gerar):
+- empresa não encontrada / inativa / início de atividade depois da referência;
+- contribuição inexistente, inativa, sem banco ou sem agência cadastrada; GRCSU (outro fluxo);
+- competência já paga; mais de um lançamento na competência; oposição registrada;
+- vencimento ou referência inválidos (ex.: ano com 3 dígitos);
+- banco com registro on-line (iugu, Asaas, Cora...) ou cálculo ainda não disponível;
+- cálculo do banco ainda não conferido ou diferente do boleto gravado pelo ProSindW.
+Boleto já existente na competência: pede confirmação e altera, como o ProSindW faz.
+Bancos com cálculo: Banco do Brasil (001/002/009), Caixa (104 SICOB, 105/106 SIGCB), Bradesco (237/238),
+Itaú (341), Santander (033/034), Sicoob (756/760), Sicredi (748/749) e bloqueto não bancário (000).
+
+RELATÓRIOS PELO ASSISTENTE (dados do banco, em PDF ou Excel)
+Sócios · Quantidade de sócios por situação e sexo · Aniversariantes do mês · Dependentes ·
+Empresas ativas/inativas · Empresas com contribuição · Empresas sem pagamento na competência ·
+Contribuições em aberto · Contribuições pagas · Boletos emitidos · Oposições de empresas e de sócios.
+Não sócios: diga "não sócios" na frase (sócios, aniversariantes, quantidade, dependentes e oposições).
+  Ex.: "Não sócios aniversariantes de outubro por classificação"
+
+Agrupar (subtotal por grupo + aba "Resumo" no Excel): acrescente "por ..." na frase.
+- por grupo (ou "por CNPJ raiz"): matriz e filiais juntas, pelos 8 primeiros números do CNPJ
+- por contribuição · por empresa · por cidade · por UF · por situação · por referência
+- por classificação (classificação do sócio/não sócio; agrupa também nos relatórios de pessoas)
+  (nos relatórios de sócios use "agrupado por cidade/sexo...", porque "por cidade" só ordena)
+Excel direto: diga "em Excel" ou "planilha" e o arquivo já é baixado (números e datas de verdade,
+cabeçalho fixo, subtotais e total).
+Exemplos:
+  "Empresas que têm contribuição, por grupo, em Excel"
+  "Empresas com contribuição ASS em 2026 por cidade"
+  "Contribuições pagas de 01/01/2026 a 30/09/2026 por grupo"
+  "Contribuições em aberto por contribuição em planilha"
+
+Filtros de sócios que podem ser combinados na mesma frase:
+- filiação: "filiados a partir de 10/01/2020", "entre 01/01/2020 e 31/12/2022", "em 2021", "nos últimos 6 meses"
+- nascimento/idade: "nascidos antes de 1970", "com 60 anos ou mais", "menores de 30 anos"
+- sexo: masculino/feminino, homens/mulheres
+- endereço: "que moram em Santa Catarina" (ou SC), "fora de SC", "na cidade de ...", "bairro ..."
+- dependentes: "com dependentes", "sem dependentes", "com filhos menores de 18 anos", "com esposa",
+  "com 2 ou mais dependentes"
+- situação (afastados, aposentados, desfiliados), empresa, com/sem e-mail, com celular, WhatsApp
+- ordem: "por sexo", "por cidade", "por empresa", "por filiação"
+O relatório mostra, logo abaixo do título, os filtros que foram entendidos.
+Para os demais, o Assistente mostra onde o relatório está no ProSindW ou no AgendaW.
+
+ÚLTIMOS RELATÓRIOS GERADOS E PREFERIDOS
+Buscar relatórios > abas "Últimos gerados" e "Preferidos" (ou botão "Relatórios gerados" no Assistente).
+- Todo relatório que o Assistente monta entra na lista, do mais recente para o mais antigo, com a frase
+  pedida, os filtros entendidos, a quantidade de registros e os PDFs/Excel gerados.
+- O mesmo pedido de novo não duplica: sobe para o topo e conta "gerado N vezes".
+- Estrela = preferido. Os preferidos aparecem também como atalhos no Assistente.
+- "Gerar de novo": refaz no Assistente com a mesma frase e as mesmas respostas (contribuição,
+  referência, empresa, período), com os dados atuais do banco.
+- PDF abre e Excel baixa o último arquivo gerado. Menu ⋮: dar um nome, copiar o pedido, ver todos os
+  arquivos daquele relatório, remover da lista. "Limpar lista" mantém os preferidos.
+- Cada usuário vê só a sua lista. Guarda os 40 últimos (preferidos não contam nesse limite).
+- A lista fica em %APPDATA%\BaseDeApoio\relatorios_gerados.json (continua ao trocar a versão do sistema).
+  O Excel gerado também é guardado em "Arquivos gerados\Relatorios".
+  Remover da lista não apaga os arquivos.
+
+RELATÓRIOS DO AGENDAW
+Buscar relatórios inclui o catálogo do AgendaW (168 relatórios e documentos: atendimentos,
+convênios, agenda, lembretes, recibos, fichas...). Use o filtro Sistema > AgendaW.
+No Assistente, pedidos sobre agenda, atendimentos, consultas, horários ou faltas procuram
+primeiro no AgendaW.
+Relatório com dados do banco (não existe no AgendaW):
+  "Atendimentos do período 01/09/2026 até 30/09/2026 somente dos dependentes"
+  Mostra data, horário, titular, dependente, parentesco, convênio/profissional, especialidade, serviço,
+  tratamento, situação e taxa. Só atendidos; diga "agendamentos" ou "todos" para todas as
+  situações (agrupado por situação), "ausências" para as faltas, e "por convênio",
+  "por especialidade", "por titular" ou "em Excel" como nos outros relatórios.
+  O SELECT para rodar no IBExpert está em tools/sql/agendaw_atendimentos_dependentes.sql.
+Para atualizar o catálogo com uma pasta Reports nova (requer Python):
+  python tools/extrai_reports.py C:\AgendaW\Reports dados/relatorios_agendaw.js AgendaW
+As consultas são somente leitura. PDFs em "Arquivos gerados\Relatorios".
+
+MÓDULOS
+Assistente — boletos, relatórios com dados do banco e dúvidas da Ajuda.
+Comparar / PROCV — cruza duas planilhas por CNPJ, CPF, matrícula etc.
+Importação de dados — gera TXT/CSV no layout; lê e valida arquivos recebidos.
+Buscar relatórios — caminho no menu, filtros da tela, prévia e campos de cada relatório;
+                    últimos relatórios gerados e preferidos.
+Área de ajuda — procedimentos, páginas de ajuda e layouts.
+Banco de dados — conexão, dados do ProSindW e conferência dos boletos (administrador).
+Usuários — quem pode entrar (administrador).
+Configurações — layouts, procedimentos, relatórios e backup.
+
+PASTAS
+BaseDeApoio.exe       abre o sistema e liga ao banco (conector)
+Arquivos gerados/     boletos e relatórios (PDF e Excel)
+index.html, css/, js/ interface
+dados/                layouts, ajuda, catálogo de relatórios, procedimentos
+conector/             código-fonte do BaseDeApoio.exe (Go). Para recompilar: go build
+tools/                (opcional, requer Python) regera os dados de layouts, ajuda e relatórios
+lib/                  leitura e gravação de Excel (SheetJS e ExcelJS, licenças incluídas)
