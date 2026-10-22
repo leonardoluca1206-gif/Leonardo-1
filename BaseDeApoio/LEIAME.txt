@@ -21,7 +21,7 @@ Na primeira vez que abrir o BaseDeApoio.exe, o sistema pede para criar o ADMINIS
 (nome, usuário e senha). Depois disso, todos entram com usuário e senha.
 - Administrador: tudo, mais a tela Banco de dados e a tela Usuários (cadastrar, trocar perfil,
   definir nova senha, desativar ou excluir).
-- Usuário: Assistente (boletos e relatórios), Comparar, Importação, Buscar relatórios e Ajuda.
+- Usuário: Assistente (boletos e relatórios), Estatísticas, Comparar, Importação, Buscar relatórios e Ajuda.
 - Trocar a própria senha e Sair: botão com o seu nome, no alto à direita.
 - A sessão termina depois de 8 horas sem uso. 5 senhas erradas seguidas bloqueiam aquele usuário
   por 1 minuto. Usuário desativado sai na hora.
@@ -118,6 +118,20 @@ Filtros de sócios que podem ser combinados na mesma frase:
 O relatório mostra, logo abaixo do título, os filtros que foram entendidos.
 Para os demais, o Assistente mostra onde o relatório está no ProSindW ou no AgendaW.
 
+ESTATÍSTICAS (gráficos com dados do banco)
+Menu Estatísticas. Filtro por datas (De / Até, com atalhos: este mês, últimos 3 e 12 meses, este ano,
+ano passado), contribuição das empresas, contribuição dos sócios e tolerância da mensalidade.
+- Sócios por situação (com masculino/feminino).
+- Empresas: ativas e inativas; ativas em dia, ativas inadimplentes, inativas em atraso e inativas sem
+  atraso, com o valor em atraso. Atraso = contribuição com vencimento no período, já vencida e sem pagamento.
+- Sócios: mensalidade em dia / em atraso (todas as competências do período pagas, a partir da filiação;
+  desfiliados não entram), contribuição em dia / em atraso / sem lançamento, e as duas juntas
+  (em dia nas duas, só mensalidade, só contribuição, atrasados nas duas).
+- Mensalidades recebidas por mês e contribuições das empresas por mês de vencimento (pagas, vencidas, a vencer).
+- "Só sócios filiados e empresas cadastradas no período": limita os cadastros às datas do filtro.
+Clique em uma linha de qualquer gráfico para ver a lista (com Excel e PDF). "Excel do resumo" baixa
+todos os números, uma aba por gráfico.
+
 ÚLTIMOS RELATÓRIOS GERADOS E PREFERIDOS
 Buscar relatórios > abas "Últimos gerados" e "Preferidos" (ou botão "Relatórios gerados" no Assistente).
 - Todo relatório que o Assistente monta entra na lista, do mais recente para o mais antigo, com a frase
@@ -151,6 +165,7 @@ As consultas são somente leitura. PDFs em "Arquivos gerados\Relatorios".
 
 MÓDULOS
 Assistente — boletos, relatórios com dados do banco e dúvidas da Ajuda.
+Estatísticas — gráficos de sócios e empresas (situação, mensalidade, contribuição, inadimplência).
 Comparar / PROCV — cruza duas planilhas por CNPJ, CPF, matrícula etc.
 Importação de dados — gera TXT/CSV no layout; lê e valida arquivos recebidos.
 Buscar relatórios — caminho no menu, filtros da tela, prévia e campos de cada relatório;

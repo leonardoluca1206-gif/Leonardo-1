@@ -15,6 +15,7 @@ let tokenAdmin = sessionStorageGet('tokenAdmin') || '';
 const ICONES = {
   casa: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   barras: '<path d="M5 20v-7M10 20V6M15 20v-9M20 20V4"/>',
+  grafico: '<path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/>',
   nuvem: '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1 .5 7.97"/><path d="M12 12v9M8.5 15.5 12 12l3.5 3.5"/>',
   documento: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/>',
   ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.3M12 17h.01"/>',
@@ -81,7 +82,7 @@ function aplicarTema(t) {
 }
 function marcarTema() { $$('.tema button').forEach((b) => { const a = b.dataset.tema === temaAtual(); b.classList.toggle('ativo', a); b.setAttribute('aria-pressed', a); }); }
 
-const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', relatorios: 'Buscar relatórios', gerados: 'Relatórios gerados', ajuda: 'Área de ajuda', config: 'Configurações', banco: 'Banco de dados', usuarios: 'Usuários' };
+const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', estatisticas: 'Estatísticas', relatorios: 'Buscar relatórios', gerados: 'Relatórios gerados', ajuda: 'Área de ajuda', config: 'Configurações', banco: 'Banco de dados', usuarios: 'Usuários' };
 function migalha(rota, extra) {
   const m = $('#migalha'); if (!m) return;
   const partes = [`<a href="#inicio" title="Visão geral">${ico('casa', 'p')}</a><span class="sep">›</span><a href="#inicio" class="ocultar-cel">Base de Apoio</a>`];
@@ -216,7 +217,7 @@ function stat(valor, rotulo, classe = '') {
 }
 
 // ============================================================ roteamento
-const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, relatorios: telaRelatorios, gerados: telaGerados, config: telaConfig, banco: telaBanco, usuarios: telaUsuarios,
+const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, relatorios: telaRelatorios, estatisticas: telaEstatisticas, gerados: telaGerados, config: telaConfig, banco: telaBanco, usuarios: telaUsuarios,
   conexao: () => { location.replace('#banco/conexao'); } };
 
 function rotear() {
@@ -240,6 +241,7 @@ async function telaInicio() {
     ['assistente', 'chat', 'Assistente', 'Peça boletos e relatórios com os dados do ProSindW, ou tire dúvidas de uso.'],
     ['procv', 'barras', 'Comparar / PROCV', 'Cruze duas planilhas por CNPJ, CPF ou matrícula e traga colunas da segunda para a primeira.'],
     ['importacao', 'nuvem', 'Importação de dados', 'Escolha um layout, envie o Excel e receba o arquivo no formato exigido. Também lê e valida arquivos.'],
+    ['estatisticas', 'grafico', 'Estatísticas', 'Gráficos de sócios por situação, mensalidade e contribuição, e de empresas ativas, inativas e inadimplentes, por período.'],
     ['relatorios', 'documento', 'Buscar relatórios', 'Descreva o relatório que precisa e veja qual usar, onde está e quais campos ele traz.'],
     ['ajuda', 'ajuda', 'Área de ajuda', 'Digite sua dúvida e veja o procedimento, os pontos de atenção e a solução de problemas.'],
   ];
