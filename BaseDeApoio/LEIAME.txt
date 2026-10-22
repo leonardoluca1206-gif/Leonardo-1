@@ -21,7 +21,7 @@ Na primeira vez que abrir o BaseDeApoio.exe, o sistema pede para criar o ADMINIS
 (nome, usuário e senha). Depois disso, todos entram com usuário e senha.
 - Administrador: tudo, mais a tela Banco de dados e a tela Usuários (cadastrar, trocar perfil,
   definir nova senha, desativar ou excluir).
-- Usuário: Assistente (boletos e relatórios), Estatísticas, Comparar, Importação, Buscar relatórios e Ajuda.
+- Usuário: Assistente (boletos e relatórios), Estatísticas, Comparar, Importação, Buscar relatórios, Ajuda e Atualizações.
 - Trocar a própria senha e Sair: botão com o seu nome, no alto à direita.
 - A sessão termina depois de 8 horas sem uso. 5 senhas erradas seguidas bloqueiam aquele usuário
   por 1 minuto. Usuário desativado sai na hora.
@@ -132,6 +132,18 @@ ano passado), contribuição das empresas, contribuição dos sócios e tolerân
 Clique em uma linha de qualquer gráfico para ver a lista (com Excel e PDF). "Excel do resumo" baixa
 todos os números, uma aba por gráfico.
 
+ATUALIZAÇÕES DOS SISTEMAS
+Menu Atualizações (também em Área de ajuda > "Atualizações dos sistemas"). Já vem com o documento de
+02/10/2026 (52 sistemas, 128 itens). Cada item mostra o sistema, a versão, o tipo (Novidade, Alteração,
+Correção), o número do chamado (ex.: PSW-4808) e onde fica no menu.
+- Procurar por palavra ou chamado ("DDI WhatsApp", "CNPJ alfanumérico", "PSW-4808"), filtrar por sistema e tipo.
+- Excel: baixa a lista completa (sistema, versão, tipo, chamado, onde, descrição).
+- A busca da Área de ajuda e o Assistente também respondem:
+  "O que mudou no AgendaW?", "Novidades do Homologador sobre e-mail", "Chamado PSW-4836".
+- Documento novo: botão "Importar .docx" (o .docx da Direta, com os sistemas no estilo "Título 1").
+  Fica neste navegador (entra no Backup). Para incluir no sistema para todos (requer Node.js):
+    node tools/gera_atualizacoes.js "Atualizações dos Sistemas 02.10.2026.docx"
+
 ÚLTIMOS RELATÓRIOS GERADOS E PREFERIDOS
 Buscar relatórios > abas "Últimos gerados" e "Preferidos" (ou botão "Relatórios gerados" no Assistente).
 - Todo relatório que o Assistente monta entra na lista, do mais recente para o mais antigo, com a frase
@@ -171,6 +183,7 @@ Importação de dados — gera TXT/CSV no layout; lê e valida arquivos recebido
 Buscar relatórios — caminho no menu, filtros da tela, prévia e campos de cada relatório;
                     últimos relatórios gerados e preferidos.
 Área de ajuda — procedimentos, páginas de ajuda e layouts.
+Atualizações — o que mudou em cada sistema (documento "Atualizações dos Sistemas"), por versão e chamado.
 Banco de dados — conexão, dados do ProSindW e conferência dos boletos (administrador).
 Usuários — quem pode entrar (administrador).
 Configurações — layouts, procedimentos, relatórios e backup.

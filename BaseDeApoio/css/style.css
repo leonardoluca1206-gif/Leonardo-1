@@ -378,6 +378,7 @@ tr.linha-alerta td { background: var(--alerta-suave); }
 .rotulo-sug { display: block; font-size: .9rem; color: var(--texto-2); margin: 16px 0 10px; font-weight: 500; }
 .sugestoes .chip, .chip.sug { padding: 9px 20px; font-size: .95rem; color: var(--texto); background: var(--superficie-2); }
 .chip.peq { padding: 5px 13px; font-size: .84rem; background: var(--superficie-2); }
+.chip.peq.ativo { background: var(--primaria); color: #fff; }
 .secao-titulo { display: flex; align-items: center; gap: 14px; margin: 30px 0 16px; }
 .secao-titulo h2 { margin: 0; font-size: 1.65rem; font-weight: 800; letter-spacing: -.02em; }
 .grupos-proc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
@@ -762,3 +763,20 @@ a.chip { text-decoration: none; }
   .es-filtros .linha-form > .fixo, .es-filtros .linha-form > .fixo .botao { width: 100%; justify-content: center; }
 }
 @media (forced-colors: active) { .gf-faixa i, .gf-trilho i, .gf-pilha i, .gf-cor { forced-color-adjust: none; border: 1px solid CanvasText; } }
+
+/* ---------- atualizações dos sistemas */
+.at-filtros .linha-form > .campo:first-child { flex: 2 1 280px; }
+.at-filtros .chips { margin-top: 2px; }
+.at-conta { margin: 16px 2px 10px; }
+.at-sis { margin-top: 12px; }
+.at-sis .cartao-titulo { margin-bottom: 6px; }
+.at-item { padding: 14px 0; border-top: 1px solid var(--borda); scroll-margin-top: 90px; }
+.at-sis .at-item:first-of-type { border-top: 0; padding-top: 4px; }
+.at-item.destaque { background: var(--primaria-suave); box-shadow: -12px 0 0 var(--primaria-suave), 12px 0 0 var(--primaria-suave); border-radius: 4px; }
+.at-selos { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.at-selos .selo.mono { font-family: var(--mono); font-size: .76rem; }
+.at-caminho { margin: 0 0 4px; font-weight: 600; font-size: .93rem; overflow-wrap: anywhere; }
+.at-texto p { margin: 0 0 .35em; overflow-wrap: anywhere; }
+.at-texto p.at-sub { padding-left: 16px; position: relative; color: var(--texto-2); }
+.at-texto p.at-sub::before { content: "•"; position: absolute; left: 4px; }
+.lista-atu-chat { margin: 6px 0 8px; padding-left: 18px; display: grid; gap: 6px; }

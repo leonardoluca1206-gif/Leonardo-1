@@ -81,7 +81,7 @@ const Motor = (() => {
   let armazenamentoOk = true;
   function carregarEstado() {
     try { est = JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch { est = null; armazenamentoOk = false; }
-    est = Object.assign({ layouts: {}, excluidos: [], procedimentos: null, modelos: [], seqModelo: 1, seqProc: 1000, historico: [], relatorios: {}, pastaReports: 'Reports\\' }, est || {});
+    est = Object.assign({ layouts: {}, excluidos: [], procedimentos: null, modelos: [], seqModelo: 1, seqProc: 1000, historico: [], relatorios: {}, pastaReports: 'Reports\\', atualizacoes: [] }, est || {});
   }
   function salvarEstado() {
     try { localStorage.setItem(CHAVE, JSON.stringify(est)); armazenamentoOk = true; }
@@ -106,6 +106,18 @@ const Motor = (() => {
     }
     return est.procedimentos;
   }
+
+  // atualizações dos sistemas: as que vêm com o sistema (dados/atualizacoes.js) + as importadas neste navegador
+  function atualizacoes() {
+    const m = new Map();
+    (window.DADOS_ATUALIZACOES || []).forEach((d) => m.set(d.id, d));
+    (est.atualizacoes || []).forEach((d) => m.set(d.id, Object.assign({}, d, { importado: true })));
+    return [...m.values()].sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  }
+  const resumoAtualizacao = (s, it) => {
+    const t = it.caminho || it.texto.split('\n')[0];
+    return t.length > 90 ? `${t.slice(0, 88)}…` : t;
+  };
 
   function registrarHistorico(modulo, descricao) {
     est.historico.unshift({ modulo, descricao, criado_em: agora() });
@@ -970,6 +982,9 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
       texto: [l.observacao, l.nome_arquivo, ...l.registros.flatMap((r) => [r.nome, ...r.campos.map((c) => c.descricao)])].filter(Boolean).join('\n') }));
     procedimentos().forEach((p) => docs.push({ tipo: 'procedimento', ref: String(p.id), titulo: p.titulo, chaves: `${p.palavras_chave || ''} ${p.categoria || ''}`,
       texto: [p.procedimento, p.atencao, p.solucao].filter(Boolean).join('\n') }));
+    atualizacoes().forEach((d) => d.sistemas.forEach((s, si) => s.itens.forEach((it, ii) => docs.push({ tipo: 'atualizacao', ref: `${d.id}|${si}|${ii}`,
+      titulo: `${s.nome}${s.versao ? ` ${s.versao}` : ''}: ${resumoAtualizacao(s, it)}`,
+      chaves: `atualizacao atualizacoes versao novidade ${it.tipo} ${s.nome} ${it.chamados.join(' ')}`, texto: it.texto }))));
     const vocab = new Map();
     const campos = ['titulo', 'chaves', 'texto'];
     const somaLen = { titulo: 0, chaves: 0, texto: 0 };
@@ -1049,7 +1064,7 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
     };
     let res = combinar(true);
     if (res.size < 3 && grupos.length > 1) { const extra = combinar(false); extra.forEach((v, k) => { if (!res.has(k)) res.set(k, v * 0.5); }); }
-    const peso = { procedimento: 2.2, pagina: 1, layout: 0.8 };
+    const peso = { procedimento: 2.2, pagina: 1, layout: 0.8, atualizacao: 1.2 };
     const rxTodos = regexVariantes(new Set(grupos.flatMap((g) => [...g])));
     let lista = [...res.entries()].map(([di, s]) => {
       const d = idx.docs[di];
@@ -1062,6 +1077,37 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
     const ids = layoutsMapa();
     lista.forEach((r) => { r.trecho = trecho(r._d.texto, rxTodos); r.tem_layout = r.tipo === 'layout' || (r.tipo === 'pagina' && ids.has(r.ref)); delete r._d; });
     return { consulta: q, termos, resultados: lista, melhor: lista.length ? detalhe(lista[0].tipo, lista[0].ref) : null };
+  }
+
+  // busca nas atualizações: nome do sistema e código do chamado contam (a busca geral ignora "ProSindW", "AgendaW"...)
+  const PALAVRAS_PEDIDO = new Set('o que quais qual mudou mudaram mudanca mudancas novo novos nova novas novidade novidades atualizacao atualizacoes atualizado versao versoes ultima ultimas no na nos nas do da dos das de em e sistema sistemas tem teve houve foi foram sobre chamado chamados lista liste mostre mostrar'.split(' '));
+  function buscarAtualizacoes(q, f = {}) {
+    const docs = atualizacoes();
+    const doc = f.doc ? docs.filter((d) => d.id === f.doc) : f.todos ? docs : docs.slice(0, 1);
+    let n = ` ${norm(q)} `;
+    const chamados = [...String(q).toUpperCase().matchAll(/\b([A-Z][A-Z0-9]*)\s?-\s?(\d+)\b/g)].map((m) => `${m[1]}-${m[2]}`);
+    // sistema citado no pedido: o nome mais longo que aparece inteiro (ProSindWeb antes de ProSindW)
+    const nomes = [...new Set(docs.flatMap((d) => d.sistemas.map((x) => x.nome)))].map((nome) => ({ nome, n: norm(nome), curto: norm(nome.replace(/\s*prosind\s*/i, ' ')) }));
+    let sistema = f.sistema || '';
+    if (!sistema) {
+      const achados = nomes.filter((x) => n.includes(` ${x.n} `) || (x.curto.length > 3 && n.includes(` ${x.curto} `))).sort((a, b) => b.n.length - a.n.length);
+      if (achados.length) { sistema = achados[0].nome; n = n.replace(` ${achados[0].n} `, ' ').replace(` ${achados[0].curto} `, ' '); }
+    }
+    chamados.forEach((c) => { n = n.replace(` ${norm(c)} `, ' '); });
+    const termos = n.split(' ').filter((t) => t.length > 1 && !PALAVRAS_PEDIDO.has(t) && !STOP.has(t));
+    const grupos = termos.map((t) => [...new Set([...(SIN[t] || [t]), t].map(raiz))]);
+    const itens = [];
+    doc.forEach((d) => d.sistemas.forEach((x, si) => {
+      if (sistema && x.nome !== sistema) return;
+      x.itens.forEach((it, ii) => {
+        if (f.tipo && it.tipo !== f.tipo) return;
+        if (chamados.length && !it.chamados.some((c) => chamados.includes(c))) return;
+        const alvo = ` ${norm(`${x.nome} ${it.texto} ${it.chamados.join(' ')}`)}`;
+        if (!grupos.every((g) => g.some((v) => alvo.includes(` ${v}`)))) return;
+        itens.push(Object.assign({ documento: d.id, data: d.data, sistema: x.nome, versao: x.versao, ref: `${d.id}|${si}|${ii}` }, it));
+      });
+    }));
+    return { consulta: q, sistema, chamados, termos, itens };
   }
 
   function detalhe(tipo, ref) {
@@ -1077,6 +1123,14 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
       const partesT = new Set(p.titulo.split(/\s+—\s+/).map(norm));
       while (blocos.length && (partesT.has(norm(blocos[0])) || ['layout', 'sistema prosind'].includes(norm(blocos[0])))) blocos.shift();
       return { tipo, ref, titulo: p.titulo, modulo: p.modulo, blocos, layout: layoutsMapa().has(ref) };
+    }
+    if (tipo === 'atualizacao') {
+      const [id, si, ii] = String(ref).split('|');
+      const d = atualizacoes().find((x) => x.id === id);
+      const s = d && d.sistemas[+si]; const it = s && s.itens[+ii];
+      if (!it) return null;
+      return { tipo, ref, titulo: `${s.nome}${s.versao ? ` ${s.versao}` : ''}`, sistema: s.nome, versao: s.versao, data: d.data, documento: d.id,
+        indice_sistema: +si, item: it, total_sistema: s.itens.length };
     }
     if (tipo === 'layout') {
       const l = layoutsMapa().get(ref);
@@ -1661,7 +1715,7 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
       const cats = {};
       layoutsMapa().forEach((l) => { cats[l.categoria] = (cats[l.categoria] || 0) + 1; });
       return { layouts: layoutsMapa().size, procedimentos: procedimentos().length, paginas: (window.DADOS_AJUDA || []).length,
-        modelos: est.modelos.length, relatorios: relMapa().size, categorias: cats, historico: est.historico.slice(0, 8), admin_protegido: false, armazenamento: armazenamentoOk };
+        modelos: est.modelos.length, relatorios: relMapa().size, atualizacoes: atualizacoes().reduce((n, d) => n + d.sistemas.reduce((k, x) => k + x.itens.length, 0), 0), categorias: cats, historico: est.historico.slice(0, 8), admin_protegido: false, armazenamento: armazenamentoOk };
     }
     if (r0 === 'login') return { token: 'livre' };
     if (r0 === 'relatorios') {
@@ -1748,6 +1802,23 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
       if (!d) throw erro('Conteúdo não encontrado.');
       return d;
     }
+    if (r0 === 'atualizacoes') {
+      if (!r1 && m === 'GET') return clone(atualizacoes());
+      if (r1 === 'buscar') { const g = (k) => u.searchParams.get(k) || ''; return buscarAtualizacoes(g('q'), { sistema: g('sistema'), tipo: g('tipo'), doc: g('doc'), todos: g('todos') === '1' }); }
+      if (!r1 && m === 'POST') { // documento já lido do .docx (js/atualizacoes.js)
+        if (!b.id || !Array.isArray(b.sistemas) || !b.sistemas.length) throw erro('Documento de atualizações inválido.');
+        const doc = { id: String(b.id), titulo: String(b.titulo || 'Atualizações dos Sistemas'), data: String(b.data || ''), arquivo: String(b.arquivo || ''), importado_em: agora(), sistemas: b.sistemas };
+        est.atualizacoes = (est.atualizacoes || []).filter((x) => x.id !== doc.id).concat(doc);
+        salvarEstado(); _indice = null;
+        registrarHistorico('Atualizações', `Importado ${doc.arquivo || doc.id}`);
+        return { id: doc.id, sistemas: doc.sistemas.length, itens: doc.sistemas.reduce((n, x) => n + x.itens.length, 0) };
+      }
+      if (r1 && m === 'DELETE') {
+        if (!(est.atualizacoes || []).some((x) => x.id === r1)) throw erro('Só é possível remover documentos importados neste navegador.');
+        est.atualizacoes = est.atualizacoes.filter((x) => x.id !== r1); salvarEstado(); _indice = null;
+        return { ok: true };
+      }
+    }
     if (r0 === 'procedimentos') {
       const lista = procedimentos();
       if (!r1 && m === 'GET') return clone(lista).sort((a, x) => `${a.categoria}${a.titulo}`.localeCompare(`${x.categoria}${x.titulo}`, 'pt-BR'));
@@ -1773,7 +1844,7 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
   function importarBackup(texto) {
     const j = JSON.parse(texto);
     if (!j || j.tipo !== 'central-apoio-backup' || !j.dados) throw erro('Arquivo não é um backup da Base de Apoio.');
-    est = Object.assign({ layouts: {}, excluidos: [], procedimentos: null, modelos: [], seqModelo: 1, seqProc: 1000, historico: [], relatorios: {}, pastaReports: 'Reports\\' }, j.dados);
+    est = Object.assign({ layouts: {}, excluidos: [], procedimentos: null, modelos: [], seqModelo: 1, seqProc: 1000, historico: [], relatorios: {}, pastaReports: 'Reports\\', atualizacoes: [] }, j.dados);
     salvarEstado(); invalidarLayouts(); invalidarRel();
     return { layouts: Object.keys(est.layouts).length, procedimentos: (est.procedimentos || []).length, modelos: est.modelos.length };
   }
@@ -1784,5 +1855,5 @@ ja nao sim mais menos muito ser estou quero preciso gostaria saber ajuda duvida`
   }
 
   return { api, enviar, baixar, baixarTexto, exportarBackup, importarBackup, restaurarPadrao, resumoAlteracoes,
-    csvCatalogo, _teste: { formatar, escalar, textoDecimal, paraData, Dia, norm, sugerirMapa, buscar, layoutsMapa } };
+    csvCatalogo, _teste: { formatar, escalar, textoDecimal, paraData, Dia, norm, sugerirMapa, buscar, buscarAtualizacoes, layoutsMapa } };
 })();

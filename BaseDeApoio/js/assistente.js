@@ -615,6 +615,7 @@ const SUGESTOES_CHAT = [
   'Atendimentos do período 01/09/2026 até 30/09/2026 somente dos dependentes',
   'Aniversariantes de outubro',
   'Como emitir segunda via de boleto?',
+  'O que mudou no ProSindW?',
 ];
 
 function telaAssistente() {
@@ -745,7 +746,8 @@ async function receber(texto) {
     else {
       CH.pendente = null;
       const it = intencao(texto);
-      if (it === 'boleto') await fluxoBoleto(extrairBoleto(texto));
+      if (pedeAtualizacoes(texto)) await fluxoAtualizacoes(texto);
+      else if (it === 'boleto') await fluxoBoleto(extrairBoleto(texto));
       else if (it === 'relatorio') await fluxoRelatorio(texto);
       else await fluxoAjuda(texto);
     }
@@ -1195,6 +1197,30 @@ async function excelRelatorio(d, gerado = '') {
   if (Conector.ativo && gerado) Gerados.guardarExcel(buf, d.titulo + sufixo, gerado).catch(() => { /* a lista só não terá o Excel */ });
 }
 
+// ============================================================ fluxo: atualizações dos sistemas
+// "o que mudou no AgendaW", "novidades do ProSindW", "atualizações sobre DDI", "chamado PSW-4808"
+const pedeAtualizacoes = (texto) => /\b(atualizac(ao|oes)|novidades?|o que mudou|nova versao|ultima versao|chamado)\b/.test(nrm(texto))
+  || /\b[A-Z]{2,}[A-Z0-9]*-\d{1,5}\b/.test(texto);
+async function fluxoAtualizacoes(texto) {
+  const r = await Motor.api(`/api/atualizacoes/buscar?q=${encodeURIComponent(texto)}`);
+  const docs = await Motor.api('/api/atualizacoes');
+  parar();
+  const d = docs[0];
+  if (!d) { bot('<p>Nenhum documento de atualizações carregado. Importe em <a href="#atualizacoes">Atualizações</a>.</p>'); return; }
+  const quando = fmtData(d.data) || d.id;
+  if (!r.itens.length) {
+    bot(`<p>Não encontrei ${r.sistema ? `atualizações do <strong>${esc(r.sistema)}</strong>` : 'atualizações'} com esses termos no documento de ${esc(quando)}.</p>
+      <p><a class="botao sec peq" href="#atualizacoes">Ver todas as atualizações${ico('seta')}</a></p>`);
+    return;
+  }
+  const mostrar = r.itens.slice(0, 6);
+  const link = r.sistema ? `#atualizacoes/${encodeURIComponent(d.id)}/${encodeURIComponent(r.sistema)}` : '#atualizacoes';
+  bot(`<p><strong>${fmtN(r.itens.length)} atualização(ões)${r.sistema ? ` do ${esc(r.sistema)}${r.itens[0].versao ? ` ${esc(r.itens[0].versao)}` : ''}` : ''}</strong> <small class="sutil">documento de ${esc(quando)}</small></p>
+    <ul class="lista-atu-chat">${mostrar.map((it) => `<li>${r.sistema ? '' : `<strong>${esc(it.sistema)}:</strong> `}${esc(it.texto.split('\n')[0].slice(0, 260))}${it.chamados.length ? ` <span class="selo mono">${esc(it.chamados.join(', '))}</span>` : ''}</li>`).join('')}</ul>
+    ${r.itens.length > mostrar.length ? `<p class="sutil">E mais ${fmtN(r.itens.length - mostrar.length)}.</p>` : ''}
+    <p><a class="botao sec peq" href="${link}">Abrir em Atualizações${ico('seta')}</a></p>`, null, true);
+}
+
 // ============================================================ fluxo: dúvidas (Ajuda)
 async function fluxoAjuda(texto) {
   const r = await Motor.api(`/api/ajuda/buscar?q=${encodeURIComponent(texto)}`);
@@ -1207,8 +1233,10 @@ async function fluxoAjuda(texto) {
   let corpo = '';
   if (d.tipo === 'procedimento') corpo = `<ol>${(d.passos || []).slice(0, 8).map((p) => `<li>${esc(p)}</li>`).join('')}</ol>${d.atencao ? `<p class="lista-avisos-txt">⚠️ ${esc(String(d.atencao).split('\n')[0])}</p>` : ''}`;
   else if (d.tipo === 'pagina') corpo = `<p>${esc((d.blocos || []).slice(0, 3).join(' ').slice(0, 420))}…</p>`;
+  else if (d.tipo === 'atualizacao') corpo = `<p>${esc(d.item.texto.slice(0, 420))}</p>`;
   else corpo = `<p>${esc(String(d.observacao || '').slice(0, 300))}</p>`;
-  const link = d.tipo === 'procedimento' ? `#ajuda/procedimento/${d.id}` : d.tipo === 'layout' ? `#importacao/${encodeURIComponent(d.ref)}` : '#ajuda';
+  const link = d.tipo === 'procedimento' ? `#ajuda/procedimento/${d.id}` : d.tipo === 'layout' ? `#importacao/${encodeURIComponent(d.ref)}`
+    : d.tipo === 'atualizacao' ? `#atualizacoes/${encodeURIComponent(d.documento)}/${encodeURIComponent(d.sistema)}/${d.ref.split('|')[2]}` : '#ajuda';
   const outros = (r.resultados || []).slice(1, 4);
   bot(`<p><strong>${esc(d.titulo)}</strong></p>${corpo}
     <p><a class="botao sec peq" href="${link}">Abrir na Área de ajuda${ico('seta')}</a></p>

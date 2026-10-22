@@ -82,7 +82,7 @@ function aplicarTema(t) {
 }
 function marcarTema() { $$('.tema button').forEach((b) => { const a = b.dataset.tema === temaAtual(); b.classList.toggle('ativo', a); b.setAttribute('aria-pressed', a); }); }
 
-const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', estatisticas: 'Estatísticas', relatorios: 'Buscar relatórios', gerados: 'Relatórios gerados', ajuda: 'Área de ajuda', config: 'Configurações', banco: 'Banco de dados', usuarios: 'Usuários' };
+const NOMES_ROTA = { inicio: 'Visão geral', assistente: 'Assistente', procv: 'Comparar planilhas', importacao: 'Importação de dados', estatisticas: 'Estatísticas', relatorios: 'Buscar relatórios', gerados: 'Relatórios gerados', ajuda: 'Área de ajuda', atualizacoes: 'Atualizações dos sistemas', config: 'Configurações', banco: 'Banco de dados', usuarios: 'Usuários' };
 function migalha(rota, extra) {
   const m = $('#migalha'); if (!m) return;
   const partes = [`<a href="#inicio" title="Visão geral">${ico('casa', 'p')}</a><span class="sep">›</span><a href="#inicio" class="ocultar-cel">Base de Apoio</a>`];
@@ -217,7 +217,7 @@ function stat(valor, rotulo, classe = '') {
 }
 
 // ============================================================ roteamento
-const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, relatorios: telaRelatorios, estatisticas: telaEstatisticas, gerados: telaGerados, config: telaConfig, banco: telaBanco, usuarios: telaUsuarios,
+const rotas = { inicio: telaInicio, assistente: telaAssistente, procv: telaProcv, importacao: telaImportacao, ajuda: telaAjuda, atualizacoes: telaAtualizacoes, relatorios: telaRelatorios, estatisticas: telaEstatisticas, gerados: telaGerados, config: telaConfig, banco: telaBanco, usuarios: telaUsuarios,
   conexao: () => { location.replace('#banco/conexao'); } };
 
 function rotear() {
@@ -255,7 +255,7 @@ async function telaInicio() {
   </div>`;
   try {
     const s = await api('/api/status');
-    $('#ini-stats').innerHTML = stat(s.layouts, 'layouts') + stat(s.procedimentos, 'procedimentos') + stat(s.paginas, 'páginas de ajuda') + stat(s.relatorios || 0, 'relatórios e documentos') + stat(s.modelos, 'modelos salvos');
+    $('#ini-stats').innerHTML = stat(s.layouts, 'layouts') + stat(s.procedimentos, 'procedimentos') + stat(s.paginas, 'páginas de ajuda') + stat(s.relatorios || 0, 'relatórios e documentos') + stat(s.atualizacoes || 0, 'itens de atualizações') + stat(s.modelos, 'modelos salvos');
     $('#ini-hist').innerHTML = s.historico.length
       ? s.historico.map((h) => `<li><span><span class="selo azul">${esc(h.modulo)}</span> ${esc(h.descricao)}</span><small class="nowrap">${esc(h.criado_em.slice(8, 10) + '/' + h.criado_em.slice(5, 7) + ' ' + h.criado_em.slice(11, 16))}</small></li>`).join('')
       : '<li class="sutil">Nenhum processamento ainda.</li>';
@@ -978,7 +978,8 @@ const EXEMPLOS = ['Como cadastrar um boleto?', 'Importar mensalidades descontada
 
 function telaAjuda(params) {
   app.innerHTML = `
-  <div class="cabecalho-pagina"><div><h1>Como podemos ajudar?</h1><p>Encontre orientações nos procedimentos, nas páginas de ajuda e nos layouts.</p></div></div>
+  <div class="cabecalho-pagina"><div><h1>Como podemos ajudar?</h1><p>Encontre orientações nos procedimentos, nas páginas de ajuda, nos layouts e nas atualizações dos sistemas.</p></div>
+    <div class="acoes"><a class="botao sec" href="#atualizacoes">${ico('historico')}Atualizações dos sistemas</a></div></div>
   <div class="cartao">
     <label for="aj-q" style="font-size:1.05rem;margin-bottom:12px">Descreva sua dúvida</label>
     <form class="busca-ajuda" id="aj-form"><div class="com-icone">${ico('busca')}<input type="search" id="aj-q" placeholder="Digite sua dúvida…" value="${esc(A.q)}" autocomplete="off"></div>
@@ -1064,6 +1065,13 @@ function htmlDetalheAjuda(d, termos) {
       ${d.layout ? `<div class="aviso info">Esta página descreve um layout de arquivo. <a href="#importacao/${encodeURIComponent(d.ref)}"><strong>Abrir o layout na Importação de dados →</strong></a></div>` : ''}
       ${resto && !d.layout ? `<details class="detalhes-obs"><summary>Mostrar o restante da página</summary><div>${esc((corte > 0 ? d.blocos.slice(corte) : d.blocos.slice(60)).join('\n'))}</div></details>` : ''}</div>`;
   }
+  if (d.tipo === 'atualizacao') {
+    const [doc, , ii] = d.ref.split('|');
+    return `<div class="resposta"><span class="selo alerta">Atualização</span> <span class="selo">${esc(fmtDia(d.data))}</span>
+      <h2 style="margin-top:8px">${esc(d.titulo)}</h2>
+      ${htmlItemAtualizacao(Object.assign({ ref: d.ref }, d.item), termos)}
+      <p style="margin-top:16px"><a class="botao sec peq" href="#atualizacoes/${encodeURIComponent(doc)}/${encodeURIComponent(d.sistema)}/${ii}">${ico('historico')}Ver as ${fmtN(d.total_sistema)} atualizações do ${esc(d.sistema)}</a></p></div>`;
+  }
   return `<div class="resposta"><span class="selo">Layout</span><h2 style="margin-top:8px">${esc(d.titulo)}</h2>
     <p style="white-space:pre-wrap">${realce(d.observacao || '', termos)}</p>
     <a class="botao" href="#importacao/${encodeURIComponent(d.ref)}">Abrir na Importação de dados →</a></div>`;
@@ -1072,7 +1080,7 @@ function htmlDetalheAjuda(d, termos) {
 function desenharAjuda() {
   const r = A.res;
   const termos = r.termos || [];
-  const tipos = { procedimento: ['ok', 'Procedimento'], pagina: ['azul', 'Ajuda'], layout: ['', 'Layout'] };
+  const tipos = { procedimento: ['ok', 'Procedimento'], pagina: ['azul', 'Ajuda'], layout: ['', 'Layout'], atualizacao: ['alerta', 'Atualização'] };
   $('#aj-corpo').innerHTML = `
   <div class="layout-ajuda">
     <div class="cartao">${htmlDetalheAjuda(A.det, termos)}</div>
@@ -1085,6 +1093,109 @@ function desenharAjuda() {
   </div>`;
   $$('#aj-corpo .resultado').forEach((b) => { b.onclick = () => abrirItemAjuda(b.dataset.t, b.dataset.r); });
   $('#aj-voltar').onclick = () => { A.q = ''; A.res = null; A.det = null; $('#aj-q').value = ''; inicioAjuda(); };
+}
+
+// ============================================================ 3b. ATUALIZAÇÕES DOS SISTEMAS
+const U = { docs: null, doc: '', sistema: '', tipo: '', q: '', alvo: '' };
+const TIPOS_ATU = { Novidade: 'azul', 'Alteração': '', 'Correção': 'ok' };
+const fmtDia = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso || '');
+
+async function telaAtualizacoes(params) {
+  const [doc, sistema, item] = params || [];
+  try { U.docs = await api('/api/atualizacoes'); } catch (e) { falha(e); return; }
+  if (doc && U.docs.some((d) => d.id === doc)) { U.doc = doc; U.sistema = sistema || ''; U.tipo = ''; U.q = ''; U.alvo = item !== undefined ? `${doc}|${U.docs.find((d) => d.id === doc).sistemas.findIndex((s) => s.nome === sistema)}|${item}` : ''; }
+  if (!U.docs.some((d) => d.id === U.doc)) U.doc = U.docs[0] ? U.docs[0].id : '';
+  const d = U.docs.find((x) => x.id === U.doc);
+  const nItens = (x) => x.sistemas.reduce((n, s) => n + s.itens.length, 0);
+  app.innerHTML = `
+  <div class="cabecalho-pagina"><div><h1>Atualizações dos sistemas</h1>
+    <p>${d ? `Documento de <strong>${esc(fmtDia(d.data) || d.id)}</strong> · ${fmtN(d.sistemas.length)} sistemas · ${fmtN(nItens(d))} itens${d.importado ? ' · importado neste navegador' : ''}` : 'Nenhum documento de atualizações carregado.'}</p></div>
+    <div class="acoes">
+      ${U.docs.length > 1 ? `<select id="at-doc" aria-label="Documento" style="width:auto">${U.docs.map((x) => `<option value="${esc(x.id)}" ${x.id === U.doc ? 'selected' : ''}>${esc(fmtDia(x.data) || x.id)}</option>`).join('')}</select>` : ''}
+      <label class="botao sec" style="margin:0">${ico('importar')}Importar .docx<input type="file" id="at-arq" accept=".docx" hidden></label>
+      ${d ? `<button type="button" class="botao sec" id="at-xlsx">${ico('baixar')}Excel</button>` : ''}
+      ${d && d.importado ? `<button type="button" class="icone-btn" id="at-rem" title="Remover este documento" aria-label="Remover este documento">${ico('lixeira')}</button>` : ''}
+    </div></div>
+  ${d ? `<div class="cartao at-filtros">
+    <div class="linha-form">
+      <div class="campo"><label for="at-q">Procurar</label><div class="com-icone">${ico('busca')}<input type="search" id="at-q" placeholder="Ex.: DDI WhatsApp, CNPJ alfanumérico, PSW-4808" value="${esc(U.q)}" autocomplete="off"></div></div>
+      <div class="campo"><label for="at-sis">Sistema</label><select id="at-sis"><option value="">Todos os sistemas</option>
+        ${d.sistemas.map((s) => `<option value="${esc(s.nome)}" ${s.nome === U.sistema ? 'selected' : ''}>${esc(s.nome)} (${s.itens.length})</option>`).join('')}</select></div>
+    </div>
+    <div class="chips" id="at-tipos">${['', ...Object.keys(TIPOS_ATU)].map((t) => `<button type="button" class="chip peq ${U.tipo === t ? 'ativo' : ''}" data-t="${esc(t)}" aria-pressed="${U.tipo === t}">${esc(t || 'Todos os tipos')}</button>`).join('')}</div>
+  </div>
+  <div id="at-corpo"></div>` : `<div class="cartao vazio">Importe o documento “Atualizações dos Sistemas” (.docx) pelo botão acima.</div>`}`;
+  const sel = $('#at-doc'); if (sel) sel.onchange = () => { U.doc = sel.value; U.sistema = ''; U.alvo = ''; telaAtualizacoes(); };
+  $('#at-arq').onchange = (e) => importarAtualizacoes(e.target.files[0]);
+  const rem = $('#at-rem');
+  if (rem) rem.onclick = async () => {
+    if (!(await confirmar('Remover documento', `Remover as atualizações de ${fmtDia(d.data) || d.id} deste navegador?`))) return;
+    try { await api(`/api/atualizacoes/${encodeURIComponent(d.id)}`, { method: 'DELETE' }); U.doc = ''; toast('Documento removido.'); telaAtualizacoes(); } catch (er) { falha(er); }
+  };
+  if (!d) return;
+  $('#at-xlsx').onclick = () => excelAtualizacoes(d).catch(falha);
+  let t;
+  $('#at-q').oninput = (e) => { clearTimeout(t); t = setTimeout(() => { U.q = e.target.value; U.alvo = ''; listarAtualizacoes(); }, 200); };
+  $('#at-sis').onchange = (e) => { U.sistema = e.target.value; U.alvo = ''; listarAtualizacoes(); };
+  $$('#at-tipos .chip').forEach((b) => { b.onclick = () => { U.tipo = b.dataset.t; $$('#at-tipos .chip').forEach((x) => { const a = x === b; x.classList.toggle('ativo', a); x.setAttribute('aria-pressed', a); }); listarAtualizacoes(); }; });
+  listarAtualizacoes();
+}
+
+async function listarAtualizacoes() {
+  const qs = new URLSearchParams({ q: U.q, sistema: U.sistema, tipo: U.tipo, doc: U.doc });
+  let r;
+  try { r = await api(`/api/atualizacoes/buscar?${qs}`); } catch (e) { falha(e); return; }
+  const grupos = new Map();
+  r.itens.forEach((it) => { if (!grupos.has(it.sistema)) grupos.set(it.sistema, { versao: it.versao, itens: [] }); grupos.get(it.sistema).itens.push(it); });
+  const termos = r.termos || [];
+  const corpo = $('#at-corpo'); if (!corpo) return;
+  corpo.innerHTML = `<p class="sutil at-conta">${r.itens.length ? `${fmtN(r.itens.length)} item(ns) em ${fmtN(grupos.size)} sistema(s)` : 'Nenhuma atualização com esses filtros.'}${r.sistema && !U.sistema ? ` · sistema entendido: <strong>${esc(r.sistema)}</strong>` : ''}</p>
+    ${[...grupos.entries()].map(([nome, g]) => `<section class="cartao at-sis"><div class="cartao-titulo"><h3>${esc(nome)}</h3>${g.versao ? `<span class="contagem">versão ${esc(g.versao)}</span>` : ''}</div>
+      ${g.itens.map((it) => htmlItemAtualizacao(it, termos)).join('')}</section>`).join('')}`;
+  if (U.alvo) { const el = corpo.querySelector(`[data-ref="${CSS.escape(U.alvo)}"]`); if (el) { el.classList.add('destaque'); el.scrollIntoView({ block: 'center' }); } }
+}
+
+function htmlItemAtualizacao(it, termos) {
+  const linhas = it.texto.split('\n');
+  const cam = it.caminho && linhas[0].startsWith(it.caminho) ? it.caminho : '';
+  if (cam) linhas[0] = linhas[0].slice(cam.length).replace(/^\s*:\s*/, '');
+  return `<article class="at-item" data-ref="${esc(it.ref)}">
+    <div class="at-selos"><span class="selo ${TIPOS_ATU[it.tipo] ?? ''}">${esc(it.tipo)}</span>${it.chamados.map((c) => `<span class="selo mono" title="Chamado">${esc(c)}</span>`).join('')}</div>
+    ${cam ? `<p class="at-caminho">${realce(cam, termos)}</p>` : ''}
+    <div class="at-texto">${linhas.filter((l) => l.trim()).map((l) => `<p class="${/^[•-]\s/.test(l) ? 'at-sub' : ''}">${realce(l.replace(/^•\s*/, ''), termos)}</p>`).join('')}</div></article>`;
+}
+
+async function importarAtualizacoes(arq) {
+  if (!arq) return;
+  try {
+    const doc = LeitorAtualizacoes.lerDocx(new Uint8Array(await arq.arrayBuffer()), arq.name);
+    const existe = U.docs.find((x) => x.id === doc.id);
+    if (existe && !(await confirmar('Substituir documento', `Já existe o documento de ${fmtDia(doc.data) || doc.id}. Substituir pelo arquivo ${arq.name}?`))) return;
+    const r = await api('/api/atualizacoes', { method: 'POST', body: doc });
+    toast(`Importado: ${fmtN(r.sistemas)} sistemas e ${fmtN(r.itens)} itens.`);
+    U.doc = r.id; U.sistema = ''; U.q = ''; U.tipo = ''; U.alvo = '';
+    telaAtualizacoes();
+  } catch (e) { falha(e); }
+}
+
+async function excelAtualizacoes(d) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Base de Apoio';
+  const ws = wb.addWorksheet('Atualizações', { views: [{ state: 'frozen', ySplit: 2 }] });
+  ws.addRow([`${d.titulo} — ${fmtDia(d.data) || d.id}`]).font = { bold: true, size: 13 };
+  const cab = ws.addRow(['Sistema', 'Versão', 'Tipo', 'Chamado', 'Onde (menu)', 'Descrição']);
+  cab.font = { bold: true }; cab.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1FE' } }; });
+  d.sistemas.forEach((s) => s.itens.forEach((it) => {
+    const r = ws.addRow([s.nome, s.versao, it.tipo, it.chamados.join(', '), it.caminho, it.texto]);
+    r.getCell(6).alignment = { wrapText: true, vertical: 'top' }; r.alignment = { vertical: 'top' };
+  }));
+  [28, 18, 12, 14, 40, 100].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: ws.rowCount, column: 6 } };
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = `Atualizacoes_dos_Sistemas_${d.data || d.id}.xlsx`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 // ============================================================ 4. RELATÓRIOS

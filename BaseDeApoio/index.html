@@ -25,6 +25,7 @@
       <a href="#estatisticas" data-rota="estatisticas"><span class="ico" data-ico="grafico"></span>Estatísticas</a>
       <a href="#relatorios" data-rota="relatorios"><span class="ico" data-ico="documento"></span>Buscar relatórios</a>
       <a href="#ajuda" data-rota="ajuda"><span class="ico" data-ico="ajuda"></span>Área de ajuda</a>
+      <a href="#atualizacoes" data-rota="atualizacoes"><span class="ico" data-ico="historico"></span>Atualizações</a>
     </nav>
     <nav class="menu menu-rodape" aria-label="Administração">
       <a href="#banco" data-rota="banco" data-admin hidden><span class="ico" data-ico="banco"></span>Banco de dados</a>
@@ -67,7 +68,9 @@
 <script src="dados/relatorios_agendaw.js"></script>
 <script src="dados/menu_prosindw.js"></script>
 <script src="dados/campos_prosindw.js"></script>
+<script src="dados/atualizacoes.js"></script>
 <script src="js/motor.js"></script>
+<script src="js/atualizacoes.js"></script>
 <script>
   if (!window.Motor || !window.DADOS_LAYOUTS || !window.XLSX) {
     document.getElementById('app').innerHTML = '<div class="cartao" style="max-width:640px;margin:40px auto"><h2>Arquivos do sistema não encontrados</h2>' +
